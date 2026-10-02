@@ -1,0 +1,519 @@
+{
+  "app": "工事管理next",
+  "schema": 2,
+  "updatedAt": 1790905196814,
+  "deviceId": "dev-wxzf1cq6d9smuqager2",
+  "state": {
+    "version": 2,
+    "updatedAt": 1790905196814,
+    "tasks": [],
+    "events": [
+      {
+        "id": "emuqaiyucuurw",
+        "title": "現場調査",
+        "date": "2026-10-02",
+        "endDate": "2026-10-02",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "渋沢",
+        "location": "",
+        "note": "",
+        "showAs": "busy",
+        "reminder": 15,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqak7sz4u3y",
+        "title": "現場調査",
+        "date": "2026-10-08",
+        "endDate": "2026-10-08",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "藤沢",
+        "location": "",
+        "note": "",
+        "showAs": "busy",
+        "reminder": 15,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqalh01m5as",
+        "title": "スポッチャ",
+        "date": "2026-10-10",
+        "endDate": "2026-10-10",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "private",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqam4nq7mbh",
+        "title": "現場：渋沢マルシェ",
+        "date": "2026-10-12",
+        "endDate": "2026-10-12",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "渋沢",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqameacsnjt",
+        "title": "現場：経堂OX",
+        "date": "2026-10-13",
+        "endDate": "2026-10-15",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqanhhe9otb",
+        "title": "現場：経堂OX",
+        "date": "2026-10-17",
+        "endDate": "2026-10-17",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqanvel2hs0",
+        "title": "現場：経堂OX",
+        "date": "2026-10-19",
+        "endDate": "2026-10-22",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqaoftq28kv",
+        "title": "現場：経堂",
+        "date": "2026-10-24",
+        "endDate": "2026-10-24",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqaoxmo35jd",
+        "title": "現場：経堂",
+        "date": "2026-10-26",
+        "endDate": "2026-10-26",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqappu6e1vc",
+        "title": "IR大会(東京会場)",
+        "date": "2026-10-24",
+        "endDate": "2026-10-24",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      }
+    ],
+    "categories": [
+      {
+        "id": "work",
+        "name": "仕事",
+        "color": "#3d6fd0",
+        "locked": true
+      },
+      {
+        "id": "private",
+        "name": "プライベート",
+        "color": "#8a5cc9",
+        "locked": true
+      },
+      {
+        "id": "other",
+        "name": "その他",
+        "color": "#6f7b86",
+        "locked": true
+      }
+    ],
+    "bookmarks": [],
+    "settings": {
+      "theme": "dark",
+      "weather": {
+        "name": "町田市",
+        "lat": 35.5486,
+        "lon": 139.4467
+      },
+      "routes": {
+        "home": "〒194-0036 東京都町田市木曽東1丁目36-26",
+        "office": "〒194-0021 東京都町田市中町3丁目4-3"
+      },
+      "calendar": {
+        "weekStart": 0,
+        "workDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "workStart": "08:30",
+        "workEnd": "17:30",
+        "defaultReminder": 15,
+        "showHolidays": true,
+        "showTasks": true,
+        "defaultDuration": 60,
+        "weekNumbers": false
+      }
+    }
+  },
+  "extras": {
+    "fare": {
+      "2026-07-01": [
+        {
+          "legs": [
+            "善行"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-02": [
+        {
+          "legs": [
+            "成城学園前"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-03": [
+        {
+          "legs": [
+            "高座渋谷"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-06": [
+        {
+          "legs": [
+            "成城学園前"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-07": [
+        {
+          "legs": [
+            "成城学園前"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-08": [
+        {
+          "legs": [
+            "本鵠沼"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-09": [
+        {
+          "legs": [
+            "成城学園前",
+            "小田急多摩センター"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-10": [
+        {
+          "legs": [
+            "善行"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-13": [
+        {
+          "legs": [
+            "善行"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-14": [
+        {
+          "legs": [
+            "成城学園前"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-15": [
+        {
+          "legs": [
+            "南林間"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-16": [
+        {
+          "legs": [
+            "本鵠沼"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-23": [
+        {
+          "legs": [
+            "五月台"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-24": [
+        {
+          "legs": [
+            "善行"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-27": [
+        {
+          "legs": [
+            "栗平"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-28": [
+        {
+          "legs": [
+            "五月台"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-29": [
+        {
+          "legs": [
+            "栗平"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-30": [
+        {
+          "legs": [
+            "栗平"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-31": [
+        {
+          "legs": [
+            "善行"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-07-22": [
+        {
+          "legs": [
+            "五月台"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-09-01": [
+        {
+          "legs": [
+            "鶴川"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-02": [
+        {
+          "legs": [
+            "鶴川"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-03": [
+        {
+          "legs": [
+            "鶴川"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-04": [
+        {
+          "legs": [
+            "小田急多摩センター"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-07": [
+        {
+          "legs": [
+            "小田急多摩センター"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-08": [
+        {
+          "legs": [
+            "小田急多摩センター"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-09": [
+        {
+          "legs": [
+            "小田急多摩センター"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-10": [
+        {
+          "legs": [
+            "小田急多摩センター"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ],
+      "2026-09-15": [
+        {
+          "legs": [
+            "小田急多摩センター",
+            "栗平",
+            "鶴川",
+            "経堂",
+            "相模大野"
+          ],
+          "roundTrip": true,
+          "memo": ""
+        }
+      ],
+      "2026-09-16": [
+        {
+          "legs": [
+            "千歳船橋"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        },
+        {
+          "legs": [
+            "狛江"
+          ],
+          "roundTrip": false,
+          "memo": ""
+        }
+      ]
+    }
+  }
+}
