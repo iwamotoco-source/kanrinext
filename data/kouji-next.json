@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907682081,
+  "updatedAt": 1790907899876,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907682081,
+    "updatedAt": 1790907899876,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -340,7 +340,36 @@
         "locked": false
       }
     ],
-    "bookmarks": [],
+    "bookmarks": [
+      {
+        "title": "Spider+",
+        "url": "https://spj001144.spider-net.jp/annotation/list_blueprints.php"
+      },
+      {
+        "title": "Autodesk",
+        "url": "https://acc.autodesk.com/docs/files/projects/cf78e872-3b11-4b3d-9eae-addefdf1cb63?folderUrn=urn%3Aadsk.wipprod%3Afs.folder%3Aco.FLhV7t5zSuGo6TJVIIlo4g&viewModel=detail&moduleId=folders"
+      },
+      {
+        "title": "direct",
+        "url": "https://direct4b.com/home#/1505131389794648064/talks/1813194220270256128"
+      },
+      {
+        "title": "IR Chat",
+        "url": "https://chat.google.com/app/home"
+      },
+      {
+        "title": "SmartHR",
+        "url": "https://spj001144.spider-net.jp/annotation/list_blueprints.php"
+      },
+      {
+        "title": "クラウド勤怠",
+        "url": "https://attendance.moneyforward.com/my_page"
+      },
+      {
+        "title": "IR portal",
+        "url": "https://sites.google.com/ir-inc.net/portal/%E3%83%9B%E3%83%BC%E3%83%A0"
+      }
+    ],
     "settings": {
       "theme": "dark",
       "weather": {
