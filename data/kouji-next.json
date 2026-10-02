@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790905796412,
+  "updatedAt": 1790905815784,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790905796412,
+    "updatedAt": 1790905815784,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -50,6 +50,18 @@
         "title": "成城学園照度測定書類",
         "stationName": "成城学園前",
         "stationId": "odawara-14",
+        "priority": "normal",
+        "date": "",
+        "time": "",
+        "note": ""
+      },
+      {
+        "id": "tmuqb2zfshlhc",
+        "done": false,
+        "created": 1790905815784,
+        "title": "千歳船橋照度測定書類",
+        "stationName": "千歳船橋",
+        "stationId": "odawara-12",
         "priority": "normal",
         "date": "",
         "time": "",
