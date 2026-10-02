@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790905815784,
+  "updatedAt": 1790906172148,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790905815784,
+    "updatedAt": 1790906172148,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -258,9 +258,50 @@
         "name": "その他",
         "color": "#6f7b86",
         "locked": true
+      },
+      {
+        "id": "cmuqb402erhcm",
+        "name": "ボディビル",
+        "color": "#8e2e2e",
+        "locked": false
+      },
+      {
+        "id": "cmuqb4dcvzs70",
+        "name": "資格",
+        "color": "#2f8f83",
+        "locked": false
       }
     ],
-    "bookmarks": [],
+    "bookmarks": [
+      {
+        "title": "Autodesk",
+        "url": "https://acc.autodesk.com/docs/files/projects/cf78e872-3b11-4b3d-9eae-addefdf1cb63?folderUrn=urn%3Aadsk.wipprod%3Afs.folder%3Aco.FLhV7t5zSuGo6TJVIIlo4g&viewModel=detail&moduleId=folders"
+      },
+      {
+        "title": "direct",
+        "url": "https://direct4b.com/home#/1505131389794648064/talks/1813194220270256128"
+      },
+      {
+        "title": "spider+",
+        "url": "https://spj001144.spider-net.jp/annotation/list_blueprints.php"
+      },
+      {
+        "title": "SmartHR",
+        "url": "https://ir-inc.smarthr.jp/home"
+      },
+      {
+        "title": "クラウド勤怠",
+        "url": "https://attendance.moneyforward.com/my_page"
+      },
+      {
+        "title": "IR Chat",
+        "url": "https://chat.google.com/app/home"
+      },
+      {
+        "title": "Genspark",
+        "url": "https://www.genspark.ai/?utm_source=bing&utm_medium=cpc-search&utm_campaign=jp-competitor&utm_term=competitor&campaign_id=524010752&adgroup_id=1313919192911489&ad_id=&keyword=gemini+ai&matchtype=b&network=o&device=c&loc=243857&gclid=&random=&msclkid=48611e7e0ae91a57d5b677aa809f87a0"
+      }
+    ],
     "settings": {
       "theme": "dark",
       "weather": {
