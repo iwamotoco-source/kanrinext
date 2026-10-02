@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>図面実寸計算ツール</title>
+<style>
+:root{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#242736;--bg4:#2e3248;
+  --accent:#4f8ef7;--green:#3dd68c;--yellow:#f7c948;
+  --red:#f75f5f;--cyan:#4fd6f7;--orange:#f79a4f;--purple:#7c6af7;
+  --text:#e8eaf0;--text2:#9aa0b8;--border:#353a52;
+  --shadow:0 8px 32px rgba(0,0,0,.55);--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',Meiryo,sans-serif;
+  min-height:100vh;padding:28px 16px;
+  display:flex;flex-direction:column;align-items:center;
+}
+h1{font-size:20px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+.sub{font-size:12px;color:var(--text2);margin-bottom:28px;text-align:center;line-height:1.7;}
+
+.wrap{width:100%;max-width:680px;display:flex;flex-direction:column;gap:14px;}
+
+/* ── STEP CARD ── */
+.step-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow);transition:.2s;
+}
+.step-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,142,247,.15),var(--shadow);}
+.step-card.done{border-color:var(--green);}
+.step-card.locked{opacity:.45;pointer-events:none;}
+
+.step-head{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px;cursor:pointer;user-select:none;
+}
+.step-num{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0;
+  border:2px solid var(--border);color:var(--text2);transition:.2s;
+}
+.step-card.active .step-num{background:var(--accent);border-color:var(--accent);color:#fff;}
+.step-card.done .step-num{background:var(--green);border-color:var(--green);color:#fff;}
+.step-title{font-size:14px;font-weight:700;flex:1;}
+.step-badge{
+  font-size:11px;padding:3px 10px;border-radius:10px;
+  font-weight:600;white-space:nowrap;
+}
+.badge-wait{background:var(--bg4);color:var(--text2);}
+.badge-active{background:rgba(79,142,247,.15);color:var(--accent);}
+.badge-done{background:rgba(61,214,140,.15);color:var(--green);}
+
+.step-body{padding:0 20px 20px;display:none;}
+.step-card.active .step-body,.step-card.done .step-body{display:block;}
+
+/* ── INPUT ── */
+.igroup{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.igroup label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.irow{display:flex;align-items:center;gap:0;
+      background:var(--bg3);border:1px solid var(--border);
+      border-radius:8px;overflow:hidden;transition:.15s;}
+.irow:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,.1);}
+.ipre,.isuf{
+  padding:0 12px;height:46px;display:flex;align-items:center;
+  background:var(--bg4);font-size:12px;color:var(--text2);
+  white-space:nowrap;font-weight:600;flex-shrink:0;
+}
+.ipre{border-right:1px solid var(--border);}
+.isuf{border-left:1px solid var(--border);}
+input[type=number]{
+  flex:1;height:46px;padding:0 14px;
+  background:transparent;border:none;outline:none;
+  color:var(--text);font-size:18px;font-weight:700;
+  min-width:0;
+}
+input[type=number]::-webkit-inner-spin-button{opacity:.3;}
+
+/* ── CALIB RESULT ── */
+.calib-result{
+  background:linear-gradient(135deg,var(--bg3),var(--bg4));
+  border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;margin-top:4px;
+}
+.calib-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0;border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.calib-row:last-child{border-bottom:none;}
+.ck{color:var(--text2);}
+.cv{font-weight:700;color:var(--accent);}
+.cv.green{color:var(--green);}
+.cv.yellow{color:var(--yellow);}
+
+/* ── MULTI CALIB ── */
+.calib-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.calib-item{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:9px 12px;
+  display:flex;align-items:center;gap:10px;
+}
+.ci-num{width:22px;height:22px;border-radius:50%;background:var(--bg4);
+        font-size:11px;font-weight:700;display:flex;align-items:center;
+        justify-content:center;color:var(--text2);flex-shrink:0;}
+.ci-body{flex:1;font-size:12px;}
+.ci-main{font-weight:600;margin-bottom:2px;}
+.ci-sub{font-size:10px;color:var(--text2);}
+.ci-coef{font-size:13px;font-weight:700;color:var(--cyan);white-space:nowrap;}
+.ci-del{font-size:11px;color:var(--red);cursor:pointer;padding:3px 7px;
+        border-radius:4px;transition:.15s;}
+.ci-del:hover{background:rgba(247,95,95,.15);}
+.add-calib-row{display:flex;gap:8px;flex-wrap:wrap;}
+.add-calib-input{
+  flex:1;min-width:100px;height:38px;padding:0 10px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:7px;color:var(--text);font-size:13px;font-weight:600;
+  outline:none;transition:.15s;
+}
+.add-calib-input:focus{border-color:var(--accent);}
+
+/* ── BTN ── */
+.btn{
+  height:42px;padding:0 18px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg3);
+  color:var(--text);font-size:13px;font-weight:600;
+  cursor:pointer;transition:.15s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg4);border-color:var(--accent);}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.pri:hover{filter:brightness(1.1);}
+.btn.suc{background:var(--green);border-color:var(--green);color:#0f1117;}
+.btn.suc:hover{filter:brightness(1.1);}
+.btn.sm{height:34px;padding:0 12px;font-size:12px;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* ── MEASURE MAIN ── */
+.measure-hero{
+  text-align:center;padding:20px 0 14px;
+}
+.mh-label{font-size:11px;color:var(--text2);font-weight:600;
+          text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;}
+.mh-val{font-size:64px;font-weight:800;color:var(--green);
+        line-height:1;letter-spacing:-2px;}
+.mh-unit{font-size:20px;color:var(--text2);font-weight:400;margin-left:4px;}
+.mh-sub{font-size:12px;color:var(--text2);margin-top:8px;}
+.mh-sub span{color:var(--cyan);font-weight:600;}
+
+/* ── MEASURE INPUT ── */
+.measure-input-wrap{
+  display:flex;gap:10px;align-items:flex-end;margin-bottom:10px;
+}
+.measure-input-wrap .igroup{flex:1;margin-bottom:0;}
+#measResult{
+  font-size:28px;font-weight:800;color:var(--green);
+  white-space:nowrap;padding-bottom:10px;min-width:120px;text-align:right;
+}
+
+/* ── HISTORY ── */
+.hist-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;
+}
+.hist-header h4{font-size:11px;color:var(--text2);font-weight:600;
+                text-transform:uppercase;letter-spacing:.5px;}
+.hist-list{display:flex;flex-direction:column;gap:5px;max-height:320px;overflow-y:auto;}
+.hist-list::-webkit-scrollbar{width:3px;}
+.hist-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.hist-item{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:9px 12px;
+  display:flex;align-items:center;gap:10px;
+  transition:.15s;cursor:pointer;
+}
+.hist-item:hover{border-color:var(--accent);background:var(--bg4);}
+.hist-item.pinned{border-color:var(--yellow);}
+.hi-idx{font-size:10px;color:var(--text2);min-width:22px;}
+.hi-body{flex:1;}
+.hi-main{font-size:14px;font-weight:700;color:var(--green);}
+.hi-sub{font-size:10px;color:var(--text2);margin-top:1px;}
+.hi-memo{font-size:10px;color:var(--yellow);margin-top:2px;word-break:break-all;}
+.hi-pin{font-size:14px;cursor:pointer;padding:3px;opacity:.4;transition:.15s;}
+.hi-pin:hover,.hi-pin.on{opacity:1;}
+.hi-del{font-size:11px;color:var(--red);cursor:pointer;padding:3px 7px;
+        border-radius:4px;transition:.15s;}
+.hi-del:hover{background:rgba(247,95,95,.15);}
+.memo-input{
+  width:100%;padding:5px 8px;background:var(--bg4);
+  border:1px solid var(--border);border-radius:5px;
+  color:var(--text);font-size:11px;margin-top:5px;outline:none;
+}
+.memo-input:focus{border-color:var(--yellow);}
+
+/* ── COEF STATUS ── */
+.coef-bar{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.coef-item{display:flex;flex-direction:column;gap:2px;}
+.coef-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;}
+.coef-val{font-size:15px;font-weight:700;}
+
+/* ── FORMULA ── */
+.formula{
+  background:var(--bg4);border:1px solid var(--border);
+  border-radius:7px;padding:8px 12px;font-size:11px;
+  color:var(--text2);line-height:1.9;margin-top:8px;
+}
+.fhl{color:var(--cyan);font-weight:600;}
+
+/* ── DIVIDER ── */
+.dv{height:1px;background:var(--border);margin:12px 0;}
+
+/* ── INFO ── */
+.info{
+  background:rgba(79,214,247,.06);border:1px solid rgba(79,214,247,.2);
+  border-radius:7px;padding:9px 13px;font-size:11px;
+  color:var(--cyan);line-height:1.8;
+}
+.warn-box{
+  background:rgba(247,201,72,.06);border:1px solid rgba(247,201,72,.25);
+  border-radius:7px;padding:9px 13px;font-size:11px;
+  color:var(--yellow);line-height:1.8;margin-top:8px;
+}
+
+/* ── EXPORT ── */
+.export-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--bg2);border:1px solid var(--green);
+  border-radius:8px;padding:8px 20px;font-size:12px;
+  color:var(--green);z-index:9999;display:none;
+  box-shadow:var(--shadow);white-space:nowrap;
+}
+
+/* ── ACCURACY BADGE ── */
+.acc-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;
+}
+.acc-high{background:rgba(61,214,140,.15);color:var(--green);}
+.acc-mid{background:rgba(247,201,72,.15);color:var(--yellow);}
+.acc-low{background:rgba(247,95,95,.15);color:var(--red);}
+
+@media(max-width:500px){
+  .mh-val{font-size:48px;}
+  .add-calib-row{flex-direction:column;}
+}
+</style>
+<style>
+
+/* ===== 小田急ツール 共通ナビゲーション ===== */
+#suiteBar{height:56px;position:fixed;left:0;right:0;top:0;z-index:99990;display:flex;align-items:center;gap:10px;padding:0 16px;background:rgba(11,14,20,.96);border-bottom:1px solid #29313d;box-shadow:0 10px 35px rgba(0,0,0,.26);font-family:"Segoe UI",Meiryo,sans-serif;color:#f3f5f8;backdrop-filter:blur(14px)}
+#suiteBar .suiteHome,#suiteBar .suiteMenuBtn{height:36px;border:1px solid #303946;background:#151b24;color:#e9edf4;border-radius:11px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
+#suiteBar .suiteHome:hover,#suiteBar .suiteMenuBtn:hover{border-color:rgba(224,189,109,.42);background:#1b222d;color:#efd58f}
+#suiteBar .suiteBrand{min-width:0;flex:1}.suiteBrand b{display:block;color:#efd58f;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.suiteBrand span{display:block;color:#687386;font-size:9px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#suiteBar .suiteMenuWrap{position:relative}.suiteMenuBtn{width:39px!important;padding:0!important;font-size:17px!important}
+#suiteMenu{display:none;position:absolute;right:0;top:44px;width:310px;padding:8px;background:linear-gradient(180deg,#171c25,#0c1016);border:1px solid #303846;border-radius:16px;box-shadow:0 26px 75px rgba(0,0,0,.52);z-index:99999}#suiteMenu.show{display:block}
+#suiteMenu .cap{padding:8px 10px 6px;color:#707a8c;font-size:9px;letter-spacing:.11em;text-transform:uppercase}#suiteMenu a{display:block;padding:10px 11px;border:1px solid transparent;border-radius:10px;text-decoration:none;color:#eef1f5}#suiteMenu a:hover{background:#171e28;border-color:#293240}#suiteMenu a b{display:block;font-size:11px;color:#ead294}#suiteMenu a small{display:block;margin-top:3px;font-size:9px;color:#737d8e}
+@media(max-width:650px){#suiteBar{padding:0 10px}.suiteBrand span{display:none}#suiteMenu{position:fixed;left:10px;right:10px;top:62px;width:auto}}
+@media print{#suiteBar{display:none!important}}
+
+
+:root{--bg:#090b10!important;--bg2:#121821!important;--bg3:#171e28!important;--bg4:#202936!important;--accent:#d9b568!important;--green:#7fc59a!important;--yellow:#e4c56f!important;--cyan:#d6c08b!important;--orange:#dca35f!important;--purple:#b8a4d2!important;--text:#f1f4f8!important;--text2:#8c96a7!important;--border:#2b3441!important;--shadow:0 20px 55px rgba(0,0,0,.35)!important}body{padding:84px 16px 40px!important;background:radial-gradient(700px 430px at 85% 0%,rgba(217,181,104,.08),transparent 60%),#090b10!important}h1{color:#efd58f!important}.step-card{border-radius:15px!important}.step-card.active{border-color:rgba(217,181,104,.5)!important;box-shadow:0 0 0 2px rgba(217,181,104,.08),var(--shadow)!important}.step-card.active .step-num{background:#d9b568!important;border-color:#d9b568!important;color:#17130a!important}.btn.pri{background:#d9b568!important;border-color:#d9b568!important;color:#17130a!important}.info{background:rgba(217,181,104,.06)!important;border-color:rgba(217,181,104,.20)!important;color:#d9c38d!important}
+
+</style>
+
+<style id="ir-tools-v30-flat-ui">
+/* v3.0 common shell: Linear/Tabler-inspired flat density */
+:root{--ir-bg:#0f1115;--ir-surface:#15181d;--ir-surface2:#1b1e24;--ir-line:#262a31;--ir-line2:#30353e;--ir-text:#e8eaed;--ir-muted:#8b93a1;--ir-accent:#d6b66f}
+html,body{background:#0f1115!important;background-image:none!important;color:#e8eaed!important}
+#suiteBar{height:49px!important;min-height:49px!important;background:#0b0d10!important;border-bottom:1px solid #262a31!important;box-shadow:none!important;padding:0 14px!important}
+.suiteHome{height:30px!important;display:flex!important;align-items:center!important;background:#15181d!important;color:#c8cdd4!important;border:1px solid #30353e!important;border-radius:6px!important;padding:0 9px!important;font-size:9.5px!important;font-weight:600!important;text-decoration:none!important}
+.suiteHome:hover{background:#1b1e24!important;color:#fff!important}
+.suiteBrand b{color:#e8eaed!important;font-size:11px!important;font-weight:600!important}
+.suiteBrand span{color:#68717d!important;font-size:8px!important;margin-top:2px!important}
+.suiteMenuBtn{width:30px!important;height:30px!important;border-radius:6px!important;background:#15181d!important;border-color:#30353e!important;color:#a6adb7!important;box-shadow:none!important}
+#suiteMenu{background:#15181d!important;border:1px solid #343a43!important;border-radius:8px!important;box-shadow:none!important}
+#suiteMenu a{border-radius:5px!important}
+#suiteMenu a:hover{background:#20242b!important}
+#suiteMenu a b{color:#e4e7eb!important}
+#suiteMenu a small{color:#6d7682!important}
+button,.btn,.tb-btn,.op,.round,.big,.add-btn,.pcard-btn,.chip{box-shadow:none!important}
+.card,.step-card,.welcome,.sheet,.pcard,.setting-card{box-shadow:none!important}
+</style>
+
+<style id="ir-tools-v30-specific">
+body{background:#0f1115!important;background-image:none!important;padding-top:72px!important}
+h1{color:#e8eaed!important;font-weight:600!important}.step-card{background:#15181d!important;border-color:#262a31!important;border-radius:8px!important;box-shadow:none!important}
+.step-card.active{border-color:#4d535c!important;box-shadow:none!important}.step-card.active .step-num{background:#d6b66f!important;border-color:#d6b66f!important;color:#19160f!important}
+.btn.pri{background:#d6b66f!important;border-color:#d6b66f!important;color:#19160f!important;border-radius:6px!important}.info{background:#15181d!important;border-color:#30353e!important;color:#a4abb5!important;border-radius:6px!important}
+</style>
+<script>/* 工事管理next: アプリ内表示（?embed=1）では独自ヘッダーを隠し、テーマを同期 */(function(){var q=new URLSearchParams(location.search);if(q.get('embed')==='1'){document.documentElement.classList.add('kouji-embed');var s=document.createElement('style');s.textContent='.kouji-embed #suiteBar,.kouji-embed .homeLink{display:none!important}';document.head.appendChild(s)}})();</script></head>
+<body>
+<div id="suiteBar"><a class="suiteHome" href="../index.html">← ホーム</a><div class="suiteBrand"><b>アナログ図面計測</b><span>縮尺の狂った図面から実寸を算出</span></div><div class="suiteMenuWrap"><button class="suiteMenuBtn" id="suiteMenuBtn" aria-label="メニュー">☰</button><div id="suiteMenu"><div class="cap">TOOLS</div><a href="./pdf-editor.html"><b>PDF整理・編集</b><small>PDFの統合・並べ替え・回転</small></a><a href="./excel-images.html"><b>Excel画像抽出</b><small>シート別に画像を抽出してZIP化</small></a><a href="./drawing-scale.html"><b>アナログ図面計測</b><small>縮尺補正・実寸計測</small></a><a href="./quantity-takeoff.html"><b>数量拾い</b><small>図面上で器具をプロット・集計</small></a><a href="./electrical-calc.html"><b>電気お手軽計算</b><small>電圧降下・許容電流・配管ほか</small></a></div></div></div>
+
+<h1>📐 図面実寸計算ツール</h1>
+<p class="sub">
+  縮尺の狂った図面にスケールを当てて<br>
+  <strong style="color:var(--accent)">Tfasに入力する実寸</strong>をそのまま出すツール
+</p>
+
+<div class="wrap">
+
+  <!-- ══════════════════════════════════ -->
+  <!-- STEP 1: キャリブレーション        -->
+  <!-- ══════════════════════════════════ -->
+  <div class="step-card active" id="card1">
+    <div class="step-head" onclick="toggleCard(1)">
+      <div class="step-num">1</div>
+      <div class="step-title">キャリブレーション</div>
+      <div class="step-badge badge-active" id="badge1">設定中</div>
+    </div>
+    <div class="step-body">
+
+      <div class="info">
+        図面に書いてある寸法がわかっている箇所に三角スケールを当てて<br>
+        読取値を入力してください。<strong>1箇所でも動きますが複数入れると精度が上がります。</strong>
+      </div>
+
+      <div class="dv"></div>
+
+      <!-- 追加フォーム -->
+      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">
+        既知寸法を追加
+      </div>
+      <div class="add-calib-row">
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;">
+          <label style="font-size:10px;color:var(--text2);">図面記載の実寸 (mm)</label>
+          <div class="irow" style="border-radius:7px;">
+            <input type="number" class="add-calib-input" id="ciReal"
+                   placeholder="例：1000" style="border:none;height:38px;font-size:15px;">
+            <span class="isuf" style="height:38px;font-size:11px;">mm</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;">
+          <label style="font-size:10px;color:var(--text2);">三角スケール読取値</label>
+          <div class="irow" style="border-radius:7px;">
+            <input type="number" class="add-calib-input" id="ciRead"
+                   placeholder="例：45.5" style="border:none;height:38px;font-size:15px;" step="0.5">
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:80px;">
+          <label style="font-size:10px;color:var(--text2);">スケール面</label>
+          <select id="ciScale" style="height:38px;padding:0 8px;background:var(--bg3);
+                  border:1px solid var(--border);border-radius:7px;color:var(--text);
+                  font-size:12px;font-weight:600;outline:none;cursor:pointer;">
+            <option value="100">1/100</option>
+            <option value="200" selected>1/200</option>
+            <option value="300">1/300</option>
+            <option value="400">1/400</option>
+            <option value="500">1/500</option>
+            <option value="600">1/600</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn pri" onclick="addCalib()" style="height:38px;">追加</button>
+        </div>
+      </div>
+
+      <div class="dv"></div>
+
+      <!-- キャリブリスト -->
+      <div class="calib-list" id="calibList">
+        <div style="font-size:12px;color:var(--text2);text-align:center;padding:12px;">
+          まだ追加されていません
+        </div>
+      </div>
+
+      <!-- 係数結果 -->
+      <div id="calibResult" style="display:none;">
+        <div class="calib-result">
+          <div class="calib-row">
+            <span class="ck">補正係数（平均）</span>
+            <span class="cv green" id="crCoef">—</span>
+          </div>
+          <div class="calib-row">
+            <span class="ck">使用データ数</span>
+            <span class="cv" id="crCount">—</span>
+          </div>
+          <div class="calib-row">
+            <span class="ck">係数のばらつき</span>
+            <span id="crAcc">—</span>
+          </div>
+          <div class="calib-row">
+            <span class="ck">精度評価</span>
+            <span id="crQuality">—</span>
+          </div>
+        </div>
+        <div class="formula" id="calibFormula"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn suc" style="flex:1;" onclick="goToMeasure()">
+            ✅ この係数で計測を開始する
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- STEP 2: 計測                      -->
+  <!-- ══════════════════════════════════ -->
+  <div class="step-card locked" id="card2">
+    <div class="step-head" onclick="toggleCard(2)">
+      <div class="step-num">2</div>
+      <div class="step-title">計測 — スケール読取値を入力</div>
+      <div class="step-badge badge-wait" id="badge2">STEP1完了後</div>
+    </div>
+    <div class="step-body">
+
+      <!-- 係数ステータスバー -->
+      <div class="coef-bar" id="coefBar">
+        <div class="coef-item">
+          <span class="coef-lbl">補正係数</span>
+          <span class="coef-val" style="color:var(--cyan)" id="coefDisp">—</span>
+        </div>
+        <div class="coef-item">
+          <span class="coef-lbl">スケール面</span>
+          <span class="coef-val" style="color:var(--purple)" id="coefScale">—</span>
+        </div>
+        <div class="coef-item">
+          <span class="coef-lbl">Tfas設定</span>
+          <span class="coef-val" style="color:var(--orange)">A3 / 1:20</span>
+        </div>
+        <div style="margin-left:auto;">
+          <button class="btn sm" onclick="goToCalib()">⚙ 再キャリブ</button>
+        </div>
+      </div>
+
+      <!-- 読取値入力 -->
+      <div class="measure-input-wrap">
+        <div class="igroup">
+          <label>スケール読取値を入力（Enterで確定）</label>
+          <div class="irow">
+            <input type="number" id="measInput" placeholder="読取値"
+                   step="0.5" autofocus
+                   oninput="calcMeasure()"
+                   onkeydown="if(event.key==='Enter')addHistory()">
+          </div>
+        </div>
+        <div id="measResult">— mm</div>
+      </div>
+
+      <!-- メモ入力 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input class="memo-input" id="measMemo" placeholder="📝 メモ（部位名など）"
+               style="flex:1;height:36px;border-radius:7px;">
+        <button class="btn suc" onclick="addHistory()">記録</button>
+      </div>
+
+      <!-- 計算式表示 -->
+      <div class="formula" id="measFormula" style="display:none;"></div>
+
+      <div class="dv"></div>
+
+      <!-- 履歴 -->
+      <div class="hist-header">
+        <h4>📋 計測履歴</h4>
+        <div style="display:flex;gap:6px;">
+          <button class="btn sm" onclick="exportCSV()">📊 CSV</button>
+          <button class="btn sm" onclick="clearHistory()">🗑 全消去</button>
+        </div>
+      </div>
+
+      <div id="histEmpty" style="font-size:12px;color:var(--text2);text-align:center;padding:16px;">
+        まだ計測がありません
+      </div>
+      <div class="hist-list" id="histList"></div>
+
+      <!-- 集計 -->
+      <div id="histSummary" style="display:none;">
+        <div class="dv"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                      padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">計測数</div>
+            <div style="font-size:20px;font-weight:700;color:var(--accent)" id="sumCount">0</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                      padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">最小値</div>
+            <div style="font-size:20px;font-weight:700;color:var(--cyan)" id="sumMin">—</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                      padding:10px;text-align:center;">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">最大値</div>
+            <div style="font-size:20px;font-weight:700;color:var(--orange)" id="sumMax">—</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const S = {
+  calibs: [],   // [{real, read, scale, coef}]
+  coef: null,   // 確定した補正係数
+  scaleUsed: null,
+  history: [],  // [{id, read, real, memo, pinned, ts}]
+};
+
+// ══════════════════════════════════════════════
+// CALIB
+// ══════════════════════════════════════════════
+function addCalib() {
+  const real  = parseFloat(document.getElementById('ciReal').value);
+  const read  = parseFloat(document.getElementById('ciRead').value);
+  const scale = parseInt(document.getElementById('ciScale').value);
+
+  if (!real || real <= 0) { showToast('実寸を入力してください', 'warn'); return; }
+  if (!read || read <= 0) { showToast('読取値を入力してください', 'warn'); return; }
+
+  // 係数 = 実寸mm ÷ (読取値 × スケール分母 ÷ 1000 × 1000 ÷ 1)
+  // 実際の計算：読取値にスケール面の倍率を掛けると「スケール換算mm」になる
+  // 実寸 = 読取値 × scale / 1 → でもこれは1/1スケール前提
+  // 係数 = 実寸 ÷ (読取値 × scale / scale) ← 混乱するので素直に
+  // 補正係数 = 実寸 ÷ 読取値 （スケール面を固定前提）
+  // →「読取値 × 係数 = 実寸mm」という関係に統一する
+  const coef = real / read;
+
+  S.calibs.push({ real, read, scale, coef, id: uid() });
+  document.getElementById('ciReal').value = '';
+  document.getElementById('ciRead').value = '';
+
+  renderCalibList();
+  calcCalibResult();
+  showToast(`追加しました（係数: ${fmt(coef)}）`);
+}
+
+function removeCalib(id) {
+  S.calibs = S.calibs.filter(c => c.id !== id);
+  renderCalibList();
+  calcCalibResult();
+}
+
+function renderCalibList() {
+  const el = document.getElementById('calibList');
+  if (!S.calibs.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text2);text-align:center;padding:12px;">まだ追加されていません</div>';
+    return;
+  }
+  el.innerHTML = S.calibs.map((c, i) => `
+    <div class="calib-item">
+      <div class="ci-num">${i+1}</div>
+      <div class="ci-body">
+        <div class="ci-main">
+          実寸 <strong style="color:var(--green)">${fmt(c.real)} mm</strong>
+          　読取 <strong style="color:var(--yellow)">${c.read}</strong>
+          　スケール面 <strong style="color:var(--purple)">1/${c.scale}</strong>
+        </div>
+        <div class="ci-sub">係数: ${fmt(c.coef)}　→　読取値 × ${fmt(c.coef)} = 実寸mm</div>
+      </div>
+      <div class="ci-coef">${fmt(c.coef)}</div>
+      <div class="ci-del" onclick="removeCalib('${c.id}')">✕</div>
+    </div>
+  `).join('');
+}
+
+function calcCalibResult() {
+  const el = document.getElementById('calibResult');
+  if (!S.calibs.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  const coefs = S.calibs.map(c => c.coef);
+  const avg   = coefs.reduce((a,b) => a+b, 0) / coefs.length;
+  const max   = Math.max(...coefs);
+  const min   = Math.min(...coefs);
+  const spread = coefs.length > 1 ? ((max - min) / avg * 100) : 0;
+
+  S.coef = avg;
+  S.scaleUsed = S.calibs[S.calibs.length-1].scale;
+
+  document.getElementById('crCoef').textContent  = fmt(avg);
+  document.getElementById('crCount').textContent = `${coefs.length} 箇所`;
+
+  let accEl, qualEl;
+  if (coefs.length === 1) {
+    accEl  = '<span style="color:var(--text2)">データ1件（複数追加で精度向上）</span>';
+    qualEl = '<span class="acc-badge acc-mid">△ 普通</span>';
+  } else if (spread < 1) {
+    accEl  = `<span class="acc-badge acc-high">ばらつき ${spread.toFixed(2)}%</span>`;
+    qualEl = '<span class="acc-badge acc-high">◎ 高精度</span>';
+  } else if (spread < 3) {
+    accEl  = `<span class="acc-badge acc-mid">ばらつき ${spread.toFixed(2)}%</span>`;
+    qualEl = '<span class="acc-badge acc-mid">○ 良好</span>';
+  } else {
+    accEl  = `<span class="acc-badge acc-low">ばらつき ${spread.toFixed(2)}%</span>`;
+    qualEl = '<span class="acc-badge acc-low">△ 要再確認</span>';
+  }
+  document.getElementById('crAcc').innerHTML     = accEl;
+  document.getElementById('crQuality').innerHTML = qualEl;
+
+  document.getElementById('calibFormula').innerHTML =
+    `<span class="fhl">計算式：</span> 読取値 × <span class="fhl">${fmt(avg)}</span> = 実寸 (mm)<br>` +
+    (coefs.length > 1
+      ? `係数の範囲: ${fmt(min)} 〜 ${fmt(max)}　平均: <span class="fhl">${fmt(avg)}</span>`
+      : `例：読取値50 × ${fmt(avg)} = <span class="fhl">${fmt(50*avg)} mm</span>`
+    );
+}
+
+function goToMeasure() {
+  if (!S.coef) { showToast('先にキャリブレーションを追加してください', 'warn'); return; }
+  // STEP2 アンロック
+  const c2 = document.getElementById('card2');
+  c2.classList.remove('locked');
+  c2.classList.add('active');
+  document.getElementById('badge2').textContent = '計測中';
+  document.getElementById('badge2').className   = 'step-badge badge-active';
+  // STEP1 done
+  document.getElementById('card1').classList.remove('active');
+  document.getElementById('card1').classList.add('done');
+  document.getElementById('badge1').textContent = '完了 ✓';
+  document.getElementById('badge1').className   = 'step-badge badge-done';
+  // 係数バー更新
+  document.getElementById('coefDisp').textContent  = fmt(S.coef);
+  document.getElementById('coefScale').textContent = `1/${S.scaleUsed}`;
+  // フォーカス
+  setTimeout(() => document.getElementById('measInput').focus(), 100);
+  showToast(`係数 ${fmt(S.coef)} で計測開始！`);
+}
+
+function goToCalib() {
+  document.getElementById('card1').classList.add('active');
+  document.getElementById('card1').classList.remove('done');
+  document.getElementById('badge1').textContent = '設定中';
+  document.getElementById('badge1').className   = 'step-badge badge-active';
+  document.getElementById('card2').classList.add('locked');
+  document.getElementById('card2').classList.remove('active');
+  document.getElementById('badge2').textContent = 'STEP1完了後';
+  document.getElementById('badge2').className   = 'step-badge badge-wait';
+}
+
+// ══════════════════════════════════════════════
+// MEASURE
+// ══════════════════════════════════════════════
+function calcMeasure() {
+  const read = parseFloat(document.getElementById('measInput').value);
+  const resEl = document.getElementById('measResult');
+  const fmlEl = document.getElementById('measFormula');
+
+  if (!S.coef || isNaN(read) || read <= 0) {
+    resEl.textContent = '— mm';
+    resEl.style.color = 'var(--text2)';
+    fmlEl.style.display = 'none';
+    return;
+  }
+
+  const real = read * S.coef;
+  resEl.innerHTML = `<span style="color:var(--green);font-size:32px;font-weight:800;">${fmt(real)}</span> <span style="font-size:14px;color:var(--text2)">mm</span>`;
+  resEl.style.color = 'var(--green)';
+  fmlEl.style.display = 'block';
+  fmlEl.innerHTML =
+    `<span class="fhl">読取値</span> ${read} × ` +
+    `<span class="fhl">係数</span> ${fmt(S.coef)} = ` +
+    `<span class="fhl">実寸 ${fmt(real)} mm</span>　` +
+    `<span style="color:var(--text2)">（${fmt(real/1000,3)} m）</span>`;
+}
+
+function addHistory() {
+  const read = parseFloat(document.getElementById('measInput').value);
+  if (!S.coef || isNaN(read) || read <= 0) {
+    showToast('読取値を入力してください', 'warn');
+    return;
+  }
+  const real = read * S.coef;
+  const memo = document.getElementById('measMemo').value.trim();
+  S.history.unshift({
+    id: uid(), read, real, memo,
+    pinned: false,
+    ts: new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  });
+  document.getElementById('measInput').value = '';
+  document.getElementById('measMemo').value  = '';
+  document.getElementById('measResult').innerHTML = '— mm';
+  document.getElementById('measFormula').style.display = 'none';
+  renderHistory();
+  showToast(`記録: ${fmt(real)} mm`);
+  document.getElementById('measInput').focus();
+}
+
+function renderHistory() {
+  const list = document.getElementById('histList');
+  const empty = document.getElementById('histEmpty');
+  const summary = document.getElementById('histSummary');
+
+  if (!S.history.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    summary.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  summary.style.display = 'block';
+
+  list.innerHTML = S.history.map((h, i) => `
+    <div class="hist-item ${h.pinned?'pinned':''}" id="hi${h.id}">
+      <div class="hi-idx">#${S.history.length - i}</div>
+      <div class="hi-body">
+        <div class="hi-main">
+          ${fmt(h.real)} <span style="font-size:11px;color:var(--text2)">mm</span>
+          <span style="font-size:11px;color:var(--text2);margin-left:6px;">
+            （読取: ${h.read}）
+          </span>
+        </div>
+        <div class="hi-sub">${h.ts}</div>
+        ${h.memo ? `<div class="hi-memo">📝 ${escHtml(h.memo)}</div>` : `
+          <input class="memo-input" placeholder="📝 メモを追加..."
+                 onchange="setMemo('${h.id}',this.value)"
+                 style="margin-top:4px;width:100%;">`}
+      </div>
+      <div class="hi-pin ${h.pinned?'on':''}" onclick="togglePin('${h.id}')" title="ピン留め">📌</div>
+      <div class="hi-del" onclick="delHistory('${h.id}')">✕</div>
+    </div>
+  `).join('');
+
+  // 集計
+  const reals = S.history.map(h => h.real);
+  document.getElementById('sumCount').textContent = S.history.length;
+  document.getElementById('sumMin').textContent   = fmt(Math.min(...reals)) + ' mm';
+  document.getElementById('sumMax').textContent   = fmt(Math.max(...reals)) + ' mm';
+}
+
+function togglePin(id) {
+  const h = S.history.find(h => h.id === id);
+  if (h) { h.pinned = !h.pinned; renderHistory(); }
+}
+function setMemo(id, val) {
+  const h = S.history.find(h => h.id === id);
+  if (h) { h.memo = val; renderHistory(); }
+}
+function delHistory(id) {
+  S.history = S.history.filter(h => h.id !== id);
+  renderHistory();
+}
+function clearHistory() {
+  if (!S.history.length) return;
+  if (confirm('計測履歴を全て消去しますか？')) {
+    S.history = [];
+    renderHistory();
+    showToast('履歴を消去しました');
+  }
+}
+
+// ══════════════════════════════════════════════
+// CSV EXPORT
+// ══════════════════════════════════════════════
+function exportCSV() {
+  if (!S.history.length) { showToast('計測データがありません', 'warn'); return; }
+  const bom = '\uFEFF';
+  let csv = bom + `補正係数,${fmt(S.coef)}\nスケール面,1/${S.scaleUsed}\nTfas設定,A3/1:20\n\n`;
+  csv += 'No.,読取値,実寸(mm),実寸(m),メモ,時刻\n';
+  [...S.history].reverse().forEach((h, i) => {
+    csv += `${i+1},${h.read},${fmt(h.real)},${fmt(h.real/1000,4)},${h.memo||''},${h.ts}\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `計測データ_${dateStr()}.csv`;
+  a.click();
+  showToast('CSV出力しました');
+}
+
+// ══════════════════════════════════════════════
+// UI
+// ══════════════════════════════════════════════
+function toggleCard(n) {
+  const card = document.getElementById('card'+n);
+  if (card.classList.contains('locked')) return;
+  // bodyの表示切替
+  const body = card.querySelector('.step-body');
+  if (body) body.style.display = body.style.display === 'none' ? '' : '';
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function uid() { return Math.random().toString(36).slice(2,9); }
+function fmt(n, d=2) {
+  if (isNaN(n)||!isFinite(n)) return '—';
+  const v = parseFloat(n.toFixed(d));
+  return v.toLocaleString('ja-JP', {maximumFractionDigits: d});
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function dateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+let toastT;
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type==='warn' ? 'var(--yellow)' : 'var(--green)';
+  t.style.color       = type==='warn' ? 'var(--yellow)' : 'var(--green)';
+  t.style.display = 'block';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.style.display = 'none', 2500);
+}
+</script>
+<script>(function(){var b=document.getElementById('suiteMenuBtn'),m=document.getElementById('suiteMenu');if(!b||!m)return;b.addEventListener('click',function(e){e.stopPropagation();m.classList.toggle('show')});document.addEventListener('click',function(e){if(!m.contains(e.target)&&e.target!==b)m.classList.remove('show')});document.addEventListener('keydown',function(e){if(e.key==='Escape')m.classList.remove('show')});})();</script>
+</body>
+</html>

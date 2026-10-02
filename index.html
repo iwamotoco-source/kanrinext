@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16181b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="工事管理next">
+<title>工事管理next</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="./assets/css/app.css">
+<link rel="stylesheet" href="./assets/css/calendar.css">
+<script>
+/* 初回描画前にテーマを適用（ちらつき防止） */
+(function(){try{var s=JSON.parse(localStorage.getItem('koujiNextStateV1')||'null');var t=(s&&s.settings&&s.settings.theme)||'dark';if(t==='auto')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);var l=JSON.parse(localStorage.getItem('koujiNextLocalConfigV1')||'null');if(l&&l.leftCollapsed)document.documentElement.classList.add('preRailCollapsed')}catch(e){document.documentElement.setAttribute('data-theme','dark')}})();
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M7.5 14h2M11 14h2M14.5 14h2M7.5 17h2M11 17h2"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="m9 4.5-5.5 2v13l5.5-2 6 2 5.5-2v-13l-5.5 2z"/><path d="M9 4.5v13M15 6.5v13"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12.2 2.8 2.8L16.2 9.5"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5"/><path d="M8.5 13h7M8.5 16.5h5"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="m3.8 15.6 11.8-11.8 4.6 4.6L8.4 20.2z"/><path d="m7.5 12 2 2M10 9.5l1.5 1.5M12.5 7l2 2M15 4.5l1.5 1.5"/></symbol>
+  <symbol id="i-count" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><circle cx="9" cy="9" r="1.6"/><circle cx="15" cy="9" r="1.6"/><circle cx="9" cy="15" r="1.6"/><path d="M13.5 15h3M15 13.5v3"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.8 5 13.5h6l-1 7.7 8-10.7h-6z"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 7.5h16v3a2 2 0 0 0 0 3v3H4v-3a2 2 0 0 0 0-3z"/><path d="M14 7.5v9" stroke-dasharray="1.6 2"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5c2.8-1.2 5.5-1.2 8 .5 2.5-1.7 5.2-1.7 8-.5v13c-2.8-1.2-5.5-1.2-8 .5-2.5-1.7-5.2-1.7-8-.5z"/><path d="M12 6v13"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.2 7.5l1.9 1.1M17.9 15.4l1.9 1.1M4.2 16.5l1.9-1.1M17.9 8.6l1.9-1.1"/><circle cx="12" cy="12" r="7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M19.5 8.5A8 8 0 0 0 5 7.5M4.5 15.5A8 8 0 0 0 19 16.5"/><path d="M19.5 4v4.5H15M4.5 20v-4.5H9"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-train" viewBox="0 0 24 24"><rect x="6" y="3.5" width="12" height="13" rx="3"/><path d="M6 10.5h12M9.5 13.5h.01M14.5 13.5h.01M8.5 20.5l1.5-4M15.5 20.5l-1.5-4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3.5 20 6.5l-3 3"/><path d="M4 11.5v-1a4 4 0 0 1 4-4h12"/><path d="m7 20.5-3-3 3-3"/><path d="M20 12.5v1a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8" cy="8" r="1.4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M13.5 4.5h6v6M19.5 4.5l-8 8"/><path d="M18 14v4.5a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1H10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-sideL" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.5 4.5v15"/></symbol>
+  <symbol id="i-sideR" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M14.5 4.5v15"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></symbol>
+  <symbol id="i-ul" viewBox="0 0 24 24"><path d="M12 15.5v-11M7.5 9 12 4.5 16.5 9M5 19.5h14"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 8.5V4h10v4.5"/><rect x="4" y="8.5" width="16" height="7.5" rx="1.5"/><path d="M7 13.5h10V20H7z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="11" rx="2"/><path d="M7 10.5h.01M10.5 10.5h.01M14 10.5h.01M17 10.5h.01M8 14h8"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></symbol>
+  <symbol id="i-reload" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5V9H15"/></symbol>
+</svg>
+
+<div class="app">
+  <!-- 左レール -->
+  <nav class="rail" id="rail" aria-label="メインメニュー">
+    <div class="brand"><div class="brandMark" aria-hidden="true">工</div><div class="brandName">工事管理<small>next</small></div></div>
+    <div class="railScroll">
+      <div class="navGroup">
+        <div class="navList">
+          <a class="nav" href="#home" data-route="home"><svg class="i"><use href="#i-home"/></svg><span class="lbl">ホーム</span></a>
+          <a class="nav" href="#calendar" data-route="calendar"><svg class="i"><use href="#i-cal"/></svg><span class="lbl">カレンダー</span></a>
+          <a class="nav" href="#map" data-route="map"><svg class="i"><use href="#i-map"/></svg><span class="lbl">小田急マップ</span></a>
+          <button class="nav" id="navTasks" type="button"><svg class="i"><use href="#i-check"/></svg><span class="lbl">タスク</span><span class="badge num" id="navTaskCount"></span></button>
+        </div>
+      </div>
+      <div class="navGroup" data-group="tools">
+        <button class="navHead" type="button">ツール<svg class="i"><use href="#i-down"/></svg></button>
+        <div class="navList" id="toolNav"></div>
+      </div>
+      <div class="navGroup links" data-group="catalogs">
+        <button class="navHead" type="button">メーカーカタログ<svg class="i"><use href="#i-down"/></svg></button>
+        <div class="navList" id="catalogNav"></div>
+      </div>
+      <div class="navGroup links" data-group="bookmarks">
+        <button class="navHead" type="button">ブックマーク<svg class="i"><use href="#i-down"/></svg></button>
+        <div class="navList" id="bookmarkNav"></div>
+      </div>
+    </div>
+    <div class="railFoot">
+      <button class="nav" id="settingsBtn" type="button"><svg class="i"><use href="#i-cog"/></svg><span class="lbl">設定</span></button>
+      <button class="nav" id="railCollapseBtn" type="button" title="メニューを折りたたむ"><svg class="i"><use href="#i-sideL"/></svg><span class="lbl">折りたたむ</span></button>
+    </div>
+  </nav>
+  <div class="scrimSide" id="scrimSide"></div>
+
+  <!-- メイン -->
+  <main class="main">
+    <header class="topbar">
+      <button class="btn ghost icon" id="menuBtn" type="button" aria-label="メニュー"><svg class="i"><use href="#i-menu"/></svg></button>
+      <div class="viewTitle" id="viewTitle">ホーム</div>
+      <button class="omni" id="omniBtn" type="button"><svg class="i"><use href="#i-search"/></svg><span>駅・予定・ツールを検索</span><kbd class="hideM">Ctrl K</kbd></button>
+      <button class="syncPill" id="syncBtn" type="button" title="今すぐ同期"><i></i><span class="lbl" id="syncLabel">ローカル保存</span></button>
+      <button class="btn ghost icon" id="paneBtn" type="button" title="タスク一覧を開閉" aria-label="タスク一覧を開閉"><svg class="i"><use href="#i-sideR"/></svg></button>
+    </header>
+
+    <div class="views">
+      <!-- HOME -->
+      <section class="view" id="view-home" aria-label="ホーム">
+        <div class="home">
+          <div class="dayHead">
+            <div class="date" id="homeDate"></div>
+            <div class="wxNow" id="wxNow"><div class="wxIcon" id="wxIcon"></div><div><b id="wxTemp">--℃</b><small id="wxText">天気を取得しています</small></div></div>
+            <div class="wxStrip" id="wxStrip">
+              <div id="wxCells" style="display:flex"></div>
+              <div class="wxTools"><button type="button" data-wx="hours" aria-pressed="true">これから</button><button type="button" data-wx="week" aria-pressed="false">週間</button></div>
+            </div>
+          </div>
+          <div class="homeLeft">
+            <section class="panel" style="flex:1;min-height:300px">
+              <div class="panelHead"><h3>予定<small id="homeAgendaSub">今日から7日間</small></h3><button class="btn sm" type="button" id="homeNewEvent"><svg class="i" style="width:15px;height:15px"><use href="#i-plus"/></svg>予定</button><a class="btn sm ghost" href="#calendar">カレンダーを開く</a></div>
+              <div class="agenda" id="homeAgenda"></div>
+            </section>
+            <section class="panel">
+              <div class="panelHead"><h3>現行案件<small>クリックで地図、フォルダアイコンで案件フォルダ</small></h3><button class="btn sm ghost" type="button" id="openRootFolder" title="工事管理フォルダを開く"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg>全フォルダ</button></div>
+              <div class="curList" id="curList"></div>
+            </section>
+          </div>
+          <section class="panel homeMap">
+            <div class="panelHead"><h3>小田急マップ</h3><a class="btn sm ghost" href="#map">大きく表示</a></div>
+            <div class="mapSlot" id="homeMapSlot"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section class="view fill" id="view-calendar" aria-label="カレンダー">
+        <div class="cal">
+          <aside class="calSide" id="calSide">
+            <button class="btn primary" type="button" id="calNew"><svg class="i"><use href="#i-plus"/></svg>新しい予定</button>
+            <div class="mini" id="miniCal"></div>
+            <div class="sideSec"><h4>種別<button type="button" id="catAllBtn">すべて表示</button></h4><div id="catList"></div></div>
+            <div class="sideSec"><h4>表示</h4>
+              <label class="catRow" id="togTasks" style="--c:var(--ink-3)"><span class="catBox"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>タスク（期日あり）</label>
+              <label class="catRow" id="togHol" style="--c:var(--danger)"><span class="catBox"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>日本の祝日</label>
+            </div>
+            <div class="sideSec hint">キー操作：<kbd>N</kbd> 新規 <kbd>T</kbd> 今日 <kbd>←</kbd><kbd>→</kbd> 前後 <kbd>D</kbd><kbd>R</kbd><kbd>W</kbd><kbd>M</kbd><kbd>A</kbd> 表示切替 <kbd>?</kbd> 一覧</div>
+          </aside>
+          <div class="calMain">
+            <div class="calBar">
+              <button class="btn ghost icon sm" type="button" id="calSideBtn" title="サイドパネル"><svg class="i"><use href="#i-sideL"/></svg></button>
+              <button class="btn sm" type="button" id="calToday">今日</button>
+              <button class="btn ghost icon sm" type="button" id="calPrev" aria-label="前へ"><svg class="i"><use href="#i-left"/></svg></button>
+              <button class="btn ghost icon sm" type="button" id="calNext" aria-label="次へ"><svg class="i"><use href="#i-right"/></svg></button>
+              <div class="calRange num" id="calRange"></div>
+              <div class="calTools">
+                <div class="seg" id="calViews" role="group" aria-label="表示">
+                  <button type="button" data-v="day">日</button><button type="button" data-v="workweek">稼働日</button><button type="button" data-v="week">週</button><button type="button" data-v="month">月</button><button type="button" data-v="list">一覧</button>
+                </div>
+                <label class="calSearch"><svg class="i"><use href="#i-search"/></svg><input id="calSearch" placeholder="予定を検索" autocomplete="off"></label>
+                <button class="btn ghost icon sm" type="button" id="calMore" aria-label="その他"><svg class="i"><use href="#i-dots"/></svg></button>
+              </div>
+            </div>
+            <div class="calBody" id="calBody"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAP -->
+      <section class="view fill" id="view-map" aria-label="小田急マップ">
+        <div class="mapSlot" id="mapViewSlot"></div>
+      </section>
+
+      <!-- TOOL -->
+      <section class="view fill" id="view-tool" aria-label="ツール">
+        <div class="toolBar"><span class="desc" id="toolDesc"></span>
+          <button class="btn sm ghost" type="button" id="toolReload"><svg class="i" style="width:15px;height:15px"><use href="#i-reload"/></svg>再読み込み</button>
+          <a class="btn sm" id="toolOpenTab" target="_blank" rel="noopener"><svg class="i" style="width:15px;height:15px"><use href="#i-ext"/></svg>別タブで開く</a>
+        </div>
+        <iframe class="toolFrame" id="toolFrame" title="ツール"></iframe>
+      </section>
+    </div>
+  </main>
+
+  <!-- タスクペイン -->
+  <aside class="pane" id="pane" aria-label="タスク">
+    <div class="paneHead"><h2>タスク<small class="num" id="taskSummary"></small></h2><button class="btn ghost icon sm" type="button" id="paneClose" aria-label="閉じる"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="quickAdd">
+      <form class="row" id="taskQuick" autocomplete="off"><input class="input" id="taskQuickInput" placeholder="タスクを追加（Enterで登録）"><button class="btn icon" type="button" id="taskDetailBtn" title="詳細を指定して追加"><svg class="i"><use href="#i-plus"/></svg></button></form>
+      <div class="row" style="justify-content:space-between">
+        <div class="taskTabs" id="taskTabs"><button type="button" data-f="open" aria-pressed="true">未完了</button><button type="button" data-f="today" aria-pressed="false">今日</button><button type="button" data-f="station" aria-pressed="false">駅付き</button><button type="button" data-f="done" aria-pressed="false">完了</button></div>
+      </div>
+      <input class="input" id="taskSearch" placeholder="絞り込み" style="height:30px;font-size:12.5px">
+    </div>
+    <div class="taskScroll" id="taskList"></div>
+  </aside>
+</div>
+
+<!-- モバイル下部タブ -->
+<nav class="tabbar" id="tabbar" aria-label="画面切替">
+  <button type="button" data-route="home"><svg class="i"><use href="#i-home"/></svg>ホーム</button>
+  <button type="button" data-route="calendar"><svg class="i"><use href="#i-cal"/></svg>カレンダー</button>
+  <button type="button" data-route="map"><svg class="i"><use href="#i-map"/></svg>マップ</button>
+  <button type="button" data-act="tasks"><svg class="i"><use href="#i-check"/></svg>タスク</button>
+  <button type="button" data-act="menu"><svg class="i"><use href="#i-menu"/></svg>ツール</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="reminders" id="reminders"></div>
+<input type="file" id="fileIcs" accept=".ics,text/calendar" hidden>
+<input type="file" id="fileJson" accept=".json,application/json" hidden>
+
+<script src="./assets/vendor/leaflet/leaflet.js"></script>
+<script src="./assets/js/stations.js"></script>
+<script src="./assets/js/core.js"></script>
+<script src="./assets/js/holidays.js"></script>
+<script src="./assets/js/recur.js"></script>
+<script src="./assets/js/calendar.js"></script>
+<script src="./assets/js/event-editor.js"></script>
+<script src="./assets/js/ics.js"></script>
+<script src="./assets/js/app.js"></script>
+</body>
+</html>

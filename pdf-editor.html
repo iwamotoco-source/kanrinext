@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#f3ece1">
+<title>ページ整理くん — PDFの統合・並べ替え・回転</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f3ece1; --paper:#fffdf9; --line:#e6dbc9; --ink:#42382e; --sub:#8b7c68;
+  --accent:#e8813a; --accent-d:#d06f2c; --green:#5aa17f; --red:#d9614f;
+  --sh:0 3px 0 rgba(0,0,0,.05), 0 10px 24px rgba(120,95,60,.10);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+img{display:block}
+
+/* ---------- ヘッダー ---------- */
+header{height:68px;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--paper);
+  border-bottom:2px solid var(--line);position:relative;z-index:20}
+.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(150deg,#ffb26b,#e8813a);
+  display:grid;place-items:center;font-size:21px;box-shadow:0 4px 10px rgba(232,129,58,.35)}
+.ttl{font-size:1.08rem;font-weight:800;letter-spacing:.02em}
+.sub{font-size:.72rem;color:var(--sub);margin-top:2px}
+.grow{flex:1}
+.hint-chip{display:flex;align-items:center;gap:7px;background:#fdf3e6;border:2px solid #f6dfc2;
+  border-radius:999px;padding:8px 16px;font-size:.78rem;color:#a06a2e;font-weight:700}
+@media(max-width:720px){.sub,.hint-chip{display:none}}
+
+/* ---------- 本体 ---------- */
+#board{height:calc(100% - 68px - 92px);overflow-y:auto;padding:20px 18px 28px;position:relative}
+@media(max-width:720px){#board{height:calc(100% - 68px - 148px);padding:14px 12px 22px}}
+.lead{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.count{background:var(--paper);border:2px solid var(--line);border-radius:999px;padding:8px 18px;
+  font-weight:800;font-size:.88rem;box-shadow:var(--sh)}
+.lead .tip{font-size:.78rem;color:var(--sub)}
+
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:18px}
+@media(max-width:720px){#grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}
+
+.card{background:var(--paper);border:2px solid var(--line);border-radius:20px;padding:12px;
+  box-shadow:var(--sh);position:relative;transition:transform .16s,box-shadow .16s,border-color .16s}
+.card:hover{transform:translateY(-3px);border-color:#e8c9a2}
+.card.ghosted{opacity:.28;border-style:dashed}
+.card.flying{position:fixed;z-index:120;pointer-events:none;margin:0;
+  box-shadow:0 18px 40px rgba(90,65,35,.32);transform:rotate(-2.5deg) scale(1.04);border-color:var(--accent)}
+.num{position:absolute;top:-10px;left:-8px;min-width:34px;height:34px;padding:0 9px;border-radius:12px;
+  background:var(--accent);color:#fff;font-weight:800;font-size:.92rem;display:grid;place-items:center;
+  box-shadow:0 4px 10px rgba(232,129,58,.4);z-index:2}
+.rot-tag{position:absolute;top:-8px;right:-6px;background:var(--green);color:#fff;font-size:.68rem;
+  font-weight:800;padding:5px 10px;border-radius:10px;z-index:2}
+.shot{height:180px;background:#fff;border:1px solid #eee5d6;border-radius:13px;display:grid;place-items:center;
+  overflow:hidden;cursor:grab;touch-action:none;user-select:none}
+.shot:active{cursor:grabbing}
+.shot img{max-width:100%;max-height:100%;object-fit:contain}
+.shot .load{font-size:.72rem;color:var(--sub)}
+@media(max-width:720px){.shot{height:132px}}
+.ops{display:flex;gap:6px;margin-top:10px}
+.op{flex:1;height:52px;border-radius:13px;background:#faf4ea;border:2px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:.13s}
+.op .i{font-size:17px;line-height:1}
+.op .t{font-size:.6rem;font-weight:800;color:var(--sub)}
+.op:hover{background:#fff0dd;border-color:var(--accent);transform:translateY(-2px)}
+.op:hover .t{color:var(--accent-d)}
+.op:disabled{opacity:.32;transform:none;background:#f6f2eb;border-color:var(--line)}
+.op.del:hover{background:#fdecea;border-color:var(--red)}
+.op.del:hover .t{color:var(--red)}
+
+/* ---------- 空の状態 ---------- */
+#empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center}
+.welcome{background:var(--paper);border:3px dashed #e2cfb2;border-radius:28px;padding:44px 32px;max-width:430px;
+  box-shadow:var(--sh)}
+.welcome .em{font-size:58px}
+.welcome h2{font-size:1.25rem;margin:14px 0 8px}
+.welcome p{font-size:.86rem;color:var(--sub);line-height:1.85;margin-bottom:22px}
+#board.over::after{content:"ここに落としてください";position:absolute;inset:12px;border:4px dashed var(--accent);
+  border-radius:24px;background:rgba(232,129,58,.10);display:grid;place-items:center;
+  font-size:1.1rem;font-weight:800;color:var(--accent-d);z-index:60}
+
+/* ---------- 大きなボタン ---------- */
+.big{height:58px;padding:0 26px;border-radius:18px;background:var(--paper);border:2px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;font-size:.95rem;font-weight:800;
+  box-shadow:var(--sh);transition:.15s}
+.big:hover{transform:translateY(-2px);border-color:#e0c39a}
+.big:disabled{opacity:.4;transform:none;box-shadow:none}
+.big.go{background:linear-gradient(150deg,#ffa457,#e8813a);color:#fff;border-color:transparent;
+  box-shadow:0 6px 18px rgba(232,129,58,.42)}
+.big.go:hover{filter:brightness(1.05)}
+.big .i{font-size:20px}
+
+/* ---------- フッター ---------- */
+footer{height:92px;background:var(--paper);border-top:2px solid var(--line);display:flex;align-items:center;
+  gap:12px;padding:0 18px;z-index:20}
+@media(max-width:720px){
+  footer{height:148px;flex-wrap:wrap;align-content:center;padding:0 12px;gap:10px}
+  footer .big{height:52px;padding:0 14px;font-size:.86rem}
+  footer .go{width:100%}
+  .fl{flex:1}
+}
+
+/* ---------- 拡大プレビュー ---------- */
+.mask{position:fixed;inset:0;background:rgba(66,56,46,.62);z-index:100;display:none;
+  align-items:center;justify-content:center;padding:18px}
+.mask.on{display:flex}
+.sheet{background:var(--paper);border-radius:24px;max-width:820px;width:100%;max-height:92vh;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.sh-h{padding:16px 20px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:12px}
+.sh-h b{font-size:1rem}
+.sh-b{flex:1;overflow:auto;background:#efe7da;display:grid;place-items:center;padding:18px}
+.sh-b canvas{max-width:100%;max-height:62vh;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.2);border-radius:6px}
+.sh-f{padding:14px 18px;border-top:2px solid var(--line);display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.round{width:52px;height:52px;border-radius:50%;background:#faf4ea;border:2px solid var(--line);
+  display:grid;place-items:center;font-size:19px}
+.round:hover{background:#fff0dd;border-color:var(--accent)}
+
+#toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#42382e;color:#fff;
+  padding:13px 26px;border-radius:999px;font-size:.85rem;font-weight:700;opacity:0;transition:.25s;
+  pointer-events:none;z-index:200;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+#toast.on{opacity:.97}
+#busy{position:fixed;inset:0;background:rgba(243,236,225,.9);z-index:150;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#busy.on{display:flex}
+.spin{width:46px;height:46px;border:5px solid #e6dbc9;border-top-color:var(--accent);border-radius:50%;
+  animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#busy .tx{font-weight:800;color:var(--sub);font-size:.88rem}
+</style>
+<style>
+
+/* ===== 小田急ツール 共通ナビゲーション ===== */
+#suiteBar{height:56px;position:fixed;left:0;right:0;top:0;z-index:99990;display:flex;align-items:center;gap:10px;padding:0 16px;background:rgba(11,14,20,.96);border-bottom:1px solid #29313d;box-shadow:0 10px 35px rgba(0,0,0,.26);font-family:"Segoe UI",Meiryo,sans-serif;color:#f3f5f8;backdrop-filter:blur(14px)}
+#suiteBar .suiteHome,#suiteBar .suiteMenuBtn{height:36px;border:1px solid #303946;background:#151b24;color:#e9edf4;border-radius:11px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
+#suiteBar .suiteHome:hover,#suiteBar .suiteMenuBtn:hover{border-color:rgba(224,189,109,.42);background:#1b222d;color:#efd58f}
+#suiteBar .suiteBrand{min-width:0;flex:1}.suiteBrand b{display:block;color:#efd58f;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.suiteBrand span{display:block;color:#687386;font-size:9px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#suiteBar .suiteMenuWrap{position:relative}.suiteMenuBtn{width:39px!important;padding:0!important;font-size:17px!important}
+#suiteMenu{display:none;position:absolute;right:0;top:44px;width:310px;padding:8px;background:linear-gradient(180deg,#171c25,#0c1016);border:1px solid #303846;border-radius:16px;box-shadow:0 26px 75px rgba(0,0,0,.52);z-index:99999}#suiteMenu.show{display:block}
+#suiteMenu .cap{padding:8px 10px 6px;color:#707a8c;font-size:9px;letter-spacing:.11em;text-transform:uppercase}#suiteMenu a{display:block;padding:10px 11px;border:1px solid transparent;border-radius:10px;text-decoration:none;color:#eef1f5}#suiteMenu a:hover{background:#171e28;border-color:#293240}#suiteMenu a b{display:block;font-size:11px;color:#ead294}#suiteMenu a small{display:block;margin-top:3px;font-size:9px;color:#737d8e}
+@media(max-width:650px){#suiteBar{padding:0 10px}.suiteBrand span{display:none}#suiteMenu{position:fixed;left:10px;right:10px;top:62px;width:auto}}
+@media print{#suiteBar{display:none!important}}
+
+
+:root{--bg:#090b10!important;--paper:#121821!important;--line:#2b3340!important;--ink:#f2f4f8!important;--sub:#8c96a7!important;--accent:#d9b568!important;--accent-d:#e2c579!important;--green:#7fc59a!important;--red:#e78484!important;--sh:0 18px 45px rgba(0,0,0,.30)!important}
+html,body{background:radial-gradient(700px 400px at 85% 0%,rgba(217,181,104,.08),transparent 60%),#090b10!important;color:var(--ink)!important}body{padding-top:56px!important}header,footer{background:#111720!important;border-color:#29313d!important}.logo{background:linear-gradient(145deg,#d9b568,#9e7937)!important;box-shadow:0 5px 18px rgba(217,181,104,.22)!important}.hint-chip{background:rgba(217,181,104,.07)!important;border-color:rgba(217,181,104,.22)!important;color:#e4ca87!important}.count,.card,.welcome,.big,.sheet{background:#121821!important;border-color:#2b3340!important}.op,.round{background:#171e28!important;border-color:#303946!important}.op:hover,.round:hover{background:#1d2632!important;border-color:#d9b568!important}.shot{background:#f6f7f9!important}.sh-b{background:#0b0f15!important}#busy{background:rgba(9,11,16,.92)!important}#toast{background:#171d27!important;color:#f3f5f8!important;border:1px solid #303846}.big.go{background:linear-gradient(135deg,#e1c174,#b58d40)!important;color:#17130a!important}.num{background:#d0aa57!important}.welcome{border-style:solid!important}#board{height:calc(100% - 56px - 68px - 92px)!important}@media(max-width:720px){#board{height:calc(100% - 56px - 68px - 148px)!important}}
+
+</style>
+
+<style id="ir-tools-v30-flat-ui">
+/* v3.0 common shell: Linear/Tabler-inspired flat density */
+:root{--ir-bg:#0f1115;--ir-surface:#15181d;--ir-surface2:#1b1e24;--ir-line:#262a31;--ir-line2:#30353e;--ir-text:#e8eaed;--ir-muted:#8b93a1;--ir-accent:#d6b66f}
+html,body{background:#0f1115!important;background-image:none!important;color:#e8eaed!important}
+#suiteBar{height:49px!important;min-height:49px!important;background:#0b0d10!important;border-bottom:1px solid #262a31!important;box-shadow:none!important;padding:0 14px!important}
+.suiteHome{height:30px!important;display:flex!important;align-items:center!important;background:#15181d!important;color:#c8cdd4!important;border:1px solid #30353e!important;border-radius:6px!important;padding:0 9px!important;font-size:9.5px!important;font-weight:600!important;text-decoration:none!important}
+.suiteHome:hover{background:#1b1e24!important;color:#fff!important}
+.suiteBrand b{color:#e8eaed!important;font-size:11px!important;font-weight:600!important}
+.suiteBrand span{color:#68717d!important;font-size:8px!important;margin-top:2px!important}
+.suiteMenuBtn{width:30px!important;height:30px!important;border-radius:6px!important;background:#15181d!important;border-color:#30353e!important;color:#a6adb7!important;box-shadow:none!important}
+#suiteMenu{background:#15181d!important;border:1px solid #343a43!important;border-radius:8px!important;box-shadow:none!important}
+#suiteMenu a{border-radius:5px!important}
+#suiteMenu a:hover{background:#20242b!important}
+#suiteMenu a b{color:#e4e7eb!important}
+#suiteMenu a small{color:#6d7682!important}
+button,.btn,.tb-btn,.op,.round,.big,.add-btn,.pcard-btn,.chip{box-shadow:none!important}
+.card,.step-card,.welcome,.sheet,.pcard,.setting-card{box-shadow:none!important}
+</style>
+
+<style id="ir-tools-v30-specific">
+html,body{background:#0f1115!important}.logo{background:#d6b66f!important;box-shadow:none!important}.hint-chip{background:#15181d!important;border-color:#30353e!important;color:#9aa2ad!important;border-radius:5px!important}
+.count,.card,.welcome,.big,.sheet{background:#15181d!important;border-color:#262a31!important;border-radius:8px!important;box-shadow:none!important}
+.op,.round{background:#1b1e24!important;border-color:#30353e!important;border-radius:6px!important}.op:hover,.round:hover{background:#22262d!important;border-color:#4c535e!important}
+.big.go{background:#d6b66f!important;color:#19160f!important;border-radius:6px!important}.num{background:#a98b4d!important}.welcome{border-style:solid!important}
+</style>
+<script>/* 工事管理next: アプリ内表示（?embed=1）では独自ヘッダーを隠し、テーマを同期 */(function(){var q=new URLSearchParams(location.search);if(q.get('embed')==='1'){document.documentElement.classList.add('kouji-embed');var s=document.createElement('style');s.textContent='.kouji-embed #suiteBar,.kouji-embed .homeLink{display:none!important}';document.head.appendChild(s)}})();</script></head>
+<body>
+<div id="suiteBar"><a class="suiteHome" href="../index.html">← ホーム</a><div class="suiteBrand"><b>PDF整理・編集</b><span>PDFをまとめる・並べ替える・回転する</span></div><div class="suiteMenuWrap"><button class="suiteMenuBtn" id="suiteMenuBtn" aria-label="メニュー">☰</button><div id="suiteMenu"><div class="cap">TOOLS</div><a href="./pdf-editor.html"><b>PDF整理・編集</b><small>PDFの統合・並べ替え・回転</small></a><a href="./excel-images.html"><b>Excel画像抽出</b><small>シート別に画像を抽出してZIP化</small></a><a href="./drawing-scale.html"><b>アナログ図面計測</b><small>縮尺補正・実寸計測</small></a><a href="./quantity-takeoff.html"><b>数量拾い</b><small>図面上で器具をプロット・集計</small></a><a href="./electrical-calc.html"><b>電気お手軽計算</b><small>電圧降下・許容電流・配管ほか</small></a></div></div></div>
+
+<header>
+  <div class="logo">📚</div>
+  <div>
+    <div class="ttl">ページ整理くん</div>
+    <div class="sub">PDFをまとめる・順番を入れ替える・向きを直す</div>
+  </div>
+  <div class="grow"></div>
+  <div class="hint-chip" id="chip">👆 サムネイルをつかんで動かせます</div>
+</header>
+
+<div id="board">
+  <div class="lead" id="lead" style="display:none">
+    <span class="count" id="count">全 0 ページ</span>
+    <span class="tip">サムネイルを長押ししてドラッグ、またはボタンで移動できます。タップで大きく確認できます。</span>
+  </div>
+  <div id="grid"></div>
+
+  <div id="empty">
+    <div class="welcome">
+      <div class="em">📄✨</div>
+      <h2>ファイルを読み込みましょう</h2>
+      <p>PDFや写真をまとめて選ぶと、1つのPDFに合体します。<br>ここにドラッグ＆ドロップしてもOKです。</p>
+      <button class="big go" onclick="pick()"><span class="i">📂</span>ファイルを選ぶ</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <button class="big fl" onclick="pick()"><span class="i">➕</span>追加</button>
+  <button class="big fl" id="bUndo" onclick="undo()" disabled><span class="i">↩</span>元に戻す</button>
+  <button class="big fl" onclick="rotateAll()"><span class="i">🔄</span>全部回転</button>
+  <div class="grow"></div>
+  <button class="big go" id="bSave" onclick="save()" disabled><span class="i">💾</span>この順番でPDFを保存</button>
+</footer>
+
+<input type="file" id="fin" multiple accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" hidden>
+
+<div class="mask" id="pv">
+  <div class="sheet">
+    <div class="sh-h"><b id="pvTtl">1 ページ目</b><div class="grow"></div>
+      <button class="round" onclick="closePv()">✕</button></div>
+    <div class="sh-b"><canvas id="pvC"></canvas></div>
+    <div class="sh-f">
+      <button class="big" onclick="pvGo(-1)"><span class="i">◀</span>前</button>
+      <button class="big" onclick="pvRot()"><span class="i">↻</span>右に90°回す</button>
+      <button class="big" onclick="pvGo(1)">次<span class="i">▶</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="busy"><div class="spin"></div><div class="tx" id="busyTx">読み込んでいます…</div></div>
+
+<script>
+/* ライブラリ： ./lib/ があればそれを、無ければCDNを使う（オフライン対応） */
+const LIB={
+  js:['./lib/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'],
+  wk:['./lib/pdf.worker.min.js',(location.protocol==='file:'?'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js':'./lib/pdf.worker.min.js')],
+  lib:['./lib/pdf-lib.min.js','https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js']
+};
+const load=l=>new Promise((ok,ng)=>{let i=0;const t=()=>{if(i>=l.length)return ng(0);
+  const s=document.createElement('script');s.src=l[i++];s.onload=ok;s.onerror=t;document.head.appendChild(s);};t();});
+
+let master=null, doc=null, pages=[], hist=[], cards=new Map(), thumbs=new Map(), pvIdx=0;
+const $=id=>document.getElementById(id);
+const uid=()=>'p'+Math.random().toString(36).slice(2,9);
+const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2000);};
+const busy=(on,tx)=>{$('busy').classList.toggle('on',!!on);if(tx)$('busyTx').textContent=tx;};
+
+/* ---------- 読み込み ---------- */
+function pick(){$('fin').click();}
+$('fin').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)intake(f);};
+['dragenter','dragover'].forEach(t=>$('board').addEventListener(t,e=>{e.preventDefault();$('board').classList.add('over');}));
+['dragleave','drop'].forEach(t=>$('board').addEventListener(t,e=>{e.preventDefault();$('board').classList.remove('over');}));
+$('board').addEventListener('drop',e=>{
+  const f=[...(e.dataTransfer?.files||[])].filter(x=>/pdf|image/.test(x.type)||/\.(pdf|png|jpe?g)$/i.test(x.name));
+  if(f.length)intake(f);
+});
+
+async function intake(files){
+  busy(true,'読み込んでいます…');
+  try{
+    const {PDFDocument,degrees}=PDFLib;
+    const out = master ? await PDFDocument.load(master.slice(0)) : await PDFDocument.create();
+    const from = out.getPageCount();
+    for(const f of files){
+      const ext=(f.name.split('.').pop()||'').toLowerCase();
+      let ab=await f.arrayBuffer();
+      if(f.type==='application/pdf'||ext==='pdf'){
+        ab=await unlock(ab,f.name);
+        const src=await PDFDocument.load(ab);
+        (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
+      }else{
+        const img = (f.type==='image/png'||ext==='png') ? await out.embedPng(ab) : await out.embedJpg(ab);
+        out.addPage([img.width,img.height]).drawImage(img,{x:0,y:0,width:img.width,height:img.height});
+      }
+    }
+    master=await out.save();
+    if(doc){try{await doc.destroy();}catch(e){}}
+    doc=await pdfjsLib.getDocument({data:master.slice(0)}).promise;
+    snap();
+    for(let i=from;i<doc.numPages;i++)pages.push({id:uid(),src:i,rot:0});
+    render();
+    toast(`${doc.numPages-from} ページを追加しました`);
+  }catch(e){alert('読み込めませんでした：'+(e.message||e));}
+  finally{busy(false);}
+}
+/* 保護付きPDFは画像に変換して取り込む */
+async function unlock(ab,name){
+  try{ await PDFLib.PDFDocument.load(ab.slice(0)); return ab; }
+  catch(e){
+    if(!/encrypt/i.test(e.message||''))throw e;
+    const out=await PDFLib.PDFDocument.create();
+    const d=await pdfjsLib.getDocument({data:ab.slice(0)}).promise;
+    for(let i=1;i<=d.numPages;i++){
+      busy(true,`保護されたPDFを変換中… ${i}/${d.numPages}`);
+      const p=await d.getPage(i),vp=p.getViewport({scale:2});
+      const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+      await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+      const img=await out.embedJpg(await bytes(c,'image/jpeg',.92));
+      out.addPage([img.width,img.height]).drawImage(img,{x:0,y:0,width:img.width,height:img.height});
+    }
+    return await out.save();
+  }
+}
+const bytes=(c,t,q)=>new Promise(r=>c.toBlob(b=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsArrayBuffer(b);},t,q));
+
+/* ---------- 表示 ---------- */
+function render(){
+  const g=$('grid');
+  $('empty').style.display=pages.length?'none':'grid';
+  $('lead').style.display=pages.length?'flex':'none';
+  $('bSave').disabled=!pages.length;
+  $('bUndo').disabled=!hist.length;
+  $('count').textContent=`全 ${pages.length} ページ`;
+  pages.forEach((p,i)=>{
+    let el=cards.get(p.id);
+    if(!el){el=build(p);cards.set(p.id,el);}
+    g.appendChild(el);
+    paintCard(el,p,i);
+  });
+  [...cards.keys()].forEach(k=>{if(!pages.some(p=>p.id===k)){cards.get(k).remove();cards.delete(k);}});
+}
+function build(p){
+  const el=document.createElement('div');el.className='card';el.dataset.id=p.id;
+  el.innerHTML=`<span class="num"></span><span class="rot-tag" style="display:none"></span>
+    <div class="shot"><span class="load">読込中…</span></div>
+    <div class="ops">
+      <button class="op mv-l"><span class="i">◀</span><span class="t">前へ</span></button>
+      <button class="op rt"><span class="i">↻</span><span class="t">回転</span></button>
+      <button class="op del"><span class="i">🗑</span><span class="t">削除</span></button>
+      <button class="op mv-r"><span class="i">▶</span><span class="t">後へ</span></button>
+    </div>`;
+  el.querySelector('.mv-l').onclick=()=>move(p.id,-1);
+  el.querySelector('.mv-r').onclick=()=>move(p.id, 1);
+  el.querySelector('.rt').onclick=()=>rotate(p.id);
+  el.querySelector('.del').onclick=()=>del(p.id);
+  dragify(el.querySelector('.shot'),el,p.id);
+  return el;
+}
+function paintCard(el,p,i){
+  el.querySelector('.num').textContent=i+1;
+  const tag=el.querySelector('.rot-tag');
+  tag.style.display=p.rot?'block':'none';tag.textContent=p.rot+'°';
+  el.querySelector('.mv-l').disabled=i===0;
+  el.querySelector('.mv-r').disabled=i===pages.length-1;
+  shot(p,el.querySelector('.shot'));
+}
+async function shot(p,box){
+  const key=p.src+'|'+p.rot;
+  if(box.dataset.key===key)return;
+  box.dataset.key=key;
+  if(thumbs.has(key)){box.innerHTML=`<img src="${thumbs.get(key)}">`;return;}
+  try{
+    const pg=await doc.getPage(p.src+1);
+    const rot=(((pg.rotate||0)+p.rot)%360+360)%360;
+    const v=pg.getViewport({scale:1,rotation:rot});
+    const s=Math.min(230/v.width,230/v.height);
+    const vp=pg.getViewport({scale:s,rotation:rot});
+    const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+    await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    const u=c.toDataURL('image/jpeg',.75);thumbs.set(key,u);
+    if(box.dataset.key===key)box.innerHTML=`<img src="${u}">`;
+  }catch(e){}
+}
+
+/* ---------- 操作 ---------- */
+function snap(){hist.push(JSON.parse(JSON.stringify(pages)));if(hist.length>40)hist.shift();}
+function undo(){if(!hist.length)return;pages=hist.pop();render();toast('ひとつ前に戻しました');}
+function idx(id){return pages.findIndex(p=>p.id===id);}
+function move(id,d){
+  const i=idx(id),j=i+d;if(j<0||j>=pages.length)return;
+  snap();[pages[i],pages[j]]=[pages[j],pages[i]];render();
+}
+function rotate(id){snap();const p=pages[idx(id)];p.rot=(p.rot+90)%360;render();}
+function rotateAll(){if(!pages.length)return;snap();pages.forEach(p=>p.rot=(p.rot+90)%360);render();toast('全ページを90°回しました');}
+function del(id){
+  const i=idx(id);
+  if(!confirm(`${i+1} ページ目を取り除きますか？`))return;
+  snap();pages.splice(i,1);render();toast('ページを取り除きました');
+}
+
+/* ---------- ドラッグで並べ替え（指でもマウスでも） ---------- */
+function dragify(handle,card,id){
+  let sx=0,sy=0,on=false,fly=null,ox=0,oy=0,moved=false;
+  handle.addEventListener('pointerdown',e=>{
+    if(e.button>0)return;
+    handle.setPointerCapture(e.pointerId);
+    const r=card.getBoundingClientRect();
+    sx=e.clientX;sy=e.clientY;ox=e.clientX-r.left;oy=e.clientY-r.top;moved=false;on=false;
+    const mv=ev=>{
+      if(!on){
+        if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<7)return;
+        on=true;moved=true;snap();
+        fly=card.cloneNode(true);fly.classList.add('flying');
+        fly.style.width=r.width+'px';fly.style.height=r.height+'px';
+        document.body.appendChild(fly);card.classList.add('ghosted');
+      }
+      fly.style.left=(ev.clientX-ox)+'px';fly.style.top=(ev.clientY-oy)+'px';
+      const b=$('board').getBoundingClientRect();
+      if(ev.clientY<b.top+70)$('board').scrollTop-=14;
+      else if(ev.clientY>b.bottom-70)$('board').scrollTop+=14;
+      const el=document.elementFromPoint(ev.clientX,ev.clientY);
+      const t=el&&el.closest('.card');
+      if(t&&t!==card){
+        const i=idx(id),j=idx(t.dataset.id);
+        if(j>=0&&i!==j){const [m]=pages.splice(i,1);pages.splice(j,0,m);render();}
+      }
+    };
+    const up=ev=>{
+      handle.removeEventListener('pointermove',mv);handle.removeEventListener('pointerup',up);
+      handle.removeEventListener('pointercancel',up);
+      if(fly){fly.remove();fly=null;}
+      card.classList.remove('ghosted');
+      if(on){on=false;render();toast('並べ替えました');}
+      else if(!moved)openPv(idx(id));
+    };
+    handle.addEventListener('pointermove',mv);
+    handle.addEventListener('pointerup',up);
+    handle.addEventListener('pointercancel',up);
+  });
+}
+
+/* ---------- 拡大プレビュー ---------- */
+async function openPv(i){
+  pvIdx=i;$('pv').classList.add('on');
+  $('pvTtl').textContent=`${i+1} / ${pages.length} ページ目`;
+  const p=pages[i],pg=await doc.getPage(p.src+1);
+  const rot=(((pg.rotate||0)+p.rot)%360+360)%360;
+  const v=pg.getViewport({scale:1,rotation:rot});
+  const s=Math.min(1400/v.width,1.8);
+  const vp=pg.getViewport({scale:s,rotation:rot});
+  const c=$('pvC');c.width=vp.width;c.height=vp.height;
+  await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+}
+function closePv(){$('pv').classList.remove('on');}
+function pvGo(d){const n=pvIdx+d;if(n<0||n>=pages.length)return;openPv(n);}
+function pvRot(){rotate(pages[pvIdx].id);openPv(pvIdx);}
+$('pv').addEventListener('click',e=>{if(e.target.id==='pv')closePv();});
+document.addEventListener('keydown',e=>{
+  if($('pv').classList.contains('on')){
+    if(e.key==='Escape')closePv();
+    if(e.key==='ArrowRight')pvGo(1);
+    if(e.key==='ArrowLeft')pvGo(-1);
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+});
+
+/* ---------- 保存 ---------- */
+async function save(){
+  if(!pages.length)return;
+  busy(true,'PDFを作っています…');
+  try{
+    const {PDFDocument,degrees}=PDFLib;
+    const src=await PDFDocument.load(master.slice(0));
+    const out=await PDFDocument.create();
+    const cp=await out.copyPages(src,pages.map(p=>p.src));
+    cp.forEach((pg,i)=>{
+      const t=(((pg.getRotation().angle+pages[i].rot)%360)+360)%360;
+      pg.setRotation(degrees(t));out.addPage(pg);
+    });
+    const b=await out.save();
+    const url=URL.createObjectURL(new Blob([b],{type:'application/pdf'}));
+    const d=new Date(),z=n=>String(n).padStart(2,'0');
+    const a=document.createElement('a');a.href=url;
+    a.download=`まとめPDF_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}.pdf`;
+    a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
+    toast('保存しました 🎉');
+  }catch(e){alert('保存に失敗しました：'+(e.message||e));}
+  finally{busy(false);}
+}
+
+/* ---------- 起動 ---------- */
+(async()=>{
+  busy(true,'準備しています…');
+  try{
+    await Promise.all([load(LIB.js),load(LIB.lib)]);
+    let w=LIB.wk[1];
+    try{const r=await fetch(LIB.wk[0],{method:'HEAD'});if(r.ok)w=LIB.wk[0];}catch(e){}
+    pdfjsLib.GlobalWorkerOptions.workerSrc=w;
+  }catch(e){
+    busy(false);
+    alert('ライブラリを読み込めませんでした。\nこのHTMLと同じ場所の lib フォルダに\npdf.min.js / pdf.worker.min.js / pdf-lib.min.js\nを置いてください。');
+    return;
+  }
+  busy(false);
+  if('serviceWorker' in navigator && location.protocol.startsWith('http'))
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script>
+<script>(function(){var b=document.getElementById('suiteMenuBtn'),m=document.getElementById('suiteMenu');if(!b||!m)return;b.addEventListener('click',function(e){e.stopPropagation();m.classList.toggle('show')});document.addEventListener('click',function(e){if(!m.contains(e.target)&&e.target!==b)m.classList.remove('show')});document.addEventListener('keydown',function(e){if(e.key==='Escape')m.classList.remove('show')});})();</script>
+</body>
+</html>

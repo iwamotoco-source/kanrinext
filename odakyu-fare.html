@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工事管理next | 小田急交通費記録</title>
+<style>
+  :root{
+    --pink:#ff8fab; --pink2:#ffb3c6; --blue:#5aa9e6; --mint:#7fd8be;
+    --cream:#fff8f0; --ink:#5b5654; --line:#f0e2d8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:"Hiragino Maru Gothic ProN","Rounded Mplus 1c","Meiryo",sans-serif;
+    margin:0; padding:18px; background:linear-gradient(160deg,#fff5f7,#eef7ff);
+    color:var(--ink);
+  }
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  h1{font-size:22px;margin:0;color:#e05a7a;letter-spacing:.5px;}
+  .sub{font-size:12px;color:#a99;margin-bottom:14px;}
+  .toolbar{
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    background:#fff;padding:12px 14px;border-radius:16px;
+    box-shadow:0 4px 14px rgba(255,143,171,.18);margin-bottom:16px;
+  }
+  .toolbar label{font-size:13px;font-weight:bold;color:#c67;}
+  select,button{
+    font-size:14px;padding:7px 12px;border:2px solid var(--line);
+    border-radius:12px;background:#fff;cursor:pointer;color:var(--ink);
+    transition:.15s; font-family:inherit;
+  }
+  button:hover{transform:translateY(-1px);}
+  button.primary{background:var(--pink);color:#fff;border-color:var(--pink);}
+  button.ghost{background:#fff;color:#c67;}
+  button.danger{background:#fff;color:#e26;border-color:#f4b8c6;}
+  .seg{display:inline-flex;background:#fbeef2;border-radius:12px;padding:3px;}
+  .seg button{border:none;background:transparent;border-radius:9px;padding:6px 14px;font-weight:bold;color:#c99;}
+  .seg button.on{background:var(--pink);color:#fff;box-shadow:0 2px 6px rgba(255,143,171,.4);}
+  .month-nav{display:flex;align-items:center;gap:12px;margin:6px 0 12px;}
+  .month-nav .title{font-size:20px;font-weight:bold;color:#e05a7a;}
+  .navbtn{border-radius:50%;width:38px;height:38px;padding:0;font-size:18px;background:#fff;border:2px solid var(--pink2);color:var(--pink);}
+  table.cal{width:100%;border-collapse:separate;border-spacing:6px;}
+  table.cal th{font-size:13px;color:#b98;padding:4px;}
+  table.cal th.sun{color:#e26;} table.cal th.sat{color:#5aa9e6;}
+  table.cal td{
+    vertical-align:top;width:14.28%;height:112px;background:#fff;
+    border-radius:14px;padding:6px;position:relative;
+    box-shadow:0 2px 8px rgba(180,160,150,.12);transition:.15s;
+  }
+  table.cal td.clickable:hover{box-shadow:0 4px 14px rgba(255,143,171,.35);transform:translateY(-2px);}
+  td.other{background:transparent;box-shadow:none;}
+  td.today{outline:3px solid var(--pink2);}
+  .daynum{font-size:14px;font-weight:bold;}
+  td.sun .daynum{color:#e26;} td.sat .daynum{color:#5aa9e6;}
+  .entries{margin-top:3px;display:flex;flex-direction:column;gap:2px;}
+  .chip{
+    background:linear-gradient(90deg,#fff0f4,#eaf5ff);border-radius:8px;
+    padding:2px 5px;font-size:10.5px;line-height:1.3;color:#775;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .day-total{position:absolute;bottom:5px;right:7px;font-size:12px;font-weight:bold;color:#2bb08a;}
+  .plus{position:absolute;bottom:4px;left:7px;font-size:16px;color:#f3c;opacity:.35;}
+  .summary{
+    margin-top:18px;background:#fff;border-radius:18px;padding:18px 22px;
+    box-shadow:0 4px 14px rgba(90,169,230,.16);display:flex;
+    align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  }
+  .summary .big{font-size:30px;font-weight:bold;color:#e05a7a;}
+  .summary .lbl{font-size:13px;color:#a99;}
+  /* modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(90,60,70,.35);
+    align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(2px);}
+  .overlay.open{display:flex;}
+  .modal{background:var(--cream);border-radius:22px;padding:22px;width:440px;
+    max-width:93vw;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2);}
+  .modal h2{font-size:17px;margin:0 0 14px;color:#e05a7a;}
+  .leg{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+  .leg .from{font-size:12px;color:#b98;min-width:70px;text-align:right;}
+  .leg select{flex:1;}
+  .leg .fare{font-size:12px;color:#2bb08a;min-width:56px;text-align:right;font-weight:bold;}
+  .leg .del{border:none;background:#ffe3ea;color:#e26;border-radius:8px;padding:4px 8px;}
+  .rt{display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px;color:#c67;}
+  .memo{width:100%;padding:8px;border:2px solid var(--line);border-radius:10px;font-family:inherit;}
+  .preview{background:#fff;border-radius:12px;padding:10px 14px;margin-top:12px;
+    display:flex;justify-content:space-between;align-items:center;}
+  .preview b{font-size:20px;color:#e05a7a;}
+  .existing{margin-top:14px;border-top:2px dashed var(--line);padding-top:12px;}
+  .exi{display:flex;justify-content:space-between;align-items:center;gap:8px;
+    background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:12px;}
+  .exi .del{border:none;background:#ffe3ea;color:#e26;border-radius:8px;padding:4px 8px;}
+  .m-actions{display:flex;justify-content:space-between;margin-top:16px;}
+  .note{font-size:11px;color:#bba;margin-top:8px;line-height:1.5;}
+  @media print{
+    .toolbar,.overlay,.no-print,.navbtn,.plus{display:none!important;}
+    body{background:#fff;padding:0;}
+    table.cal td{box-shadow:none;border:1px solid #eee;}
+    .summary{box-shadow:none;border:1px solid #ddd;}
+  }
+
+/* 工事管理next UI override */
+:root{--bg:#0f1115;--panel:#15181d;--panel2:#1b1e24;--border:#2a2f37;--text:#e8eaed;--muted:#8b93a1;--accent:#6b8cff}
+body{font-family:"Segoe UI","Yu Gothic UI",Meiryo,sans-serif;background:var(--bg);color:var(--text);padding:18px}
+.suiteTop{height:48px;margin:-18px -18px 18px;padding:0 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:#0b0d10;position:sticky;top:0;z-index:50}
+.suiteTop .homeLink{height:30px;display:flex;align-items:center;padding:0 10px;border:1px solid var(--border);border-radius:6px;color:#c7cbd2;text-decoration:none;font-size:11px}
+.suiteTop b{display:block;font-size:12px}.suiteTop small{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+.head h1,h1{color:var(--text)!important}.sub{color:var(--muted)!important}
+.toolbar,.summary,table.cal td,.modal,.preview,.exi{background:var(--panel)!important;box-shadow:none!important;border:1px solid var(--border)!important;border-radius:8px!important}
+select,button,.memo{border:1px solid var(--border)!important;border-radius:6px!important;background:var(--panel2)!important;color:var(--text)!important}
+button.primary,.seg button.on{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;box-shadow:none!important}
+.seg{background:#111419!important;border-radius:7px!important}.seg button{color:var(--muted)!important}
+.month-nav .title,.summary .big,.modal h2{color:#dfe3e8!important}
+table.cal{border-spacing:5px}.chip{background:#1b1f26!important;color:#c9ced6!important}.day-total{color:#77c293!important}
+td.today{outline:2px solid #536a9d!important}.overlay{background:rgba(0,0,0,.68)!important}
+.note,.lbl,.sub{color:var(--muted)!important}
+@media(max-width:720px){body{padding:10px}.suiteTop{margin:-10px -10px 12px;padding:0 10px}.toolbar{padding:9px}.summary{padding:12px}table.cal{border-spacing:2px}table.cal td{height:88px;padding:4px}.chip{font-size:9px}}
+</style>
+<script>/* 工事管理next: アプリ内表示（?embed=1）では独自ヘッダーを隠し、テーマを同期 */(function(){var q=new URLSearchParams(location.search);if(q.get('embed')==='1'){document.documentElement.classList.add('kouji-embed');var s=document.createElement('style');s.textContent='.kouji-embed #suiteBar,.kouji-embed .homeLink{display:none!important}';document.head.appendChild(s)}})();</script></head>
+<body>
+<div class="suiteTop">
+  <a href="../index.html" class="homeLink">← ホーム</a>
+  <div><b>小田急交通費記録</b><small>町田駅を起点に運賃を記録・集計</small></div>
+</div>
+
+<div class="head">
+  <h1>町田発 小田急線 運賃ノート</h1>
+</div>
+<div class="sub">町田駅を起点に、各駅への往復や経由の運賃をカレンダーに記録して集計・印刷できます 🌸 データは自動保存されます</div>
+
+<div class="toolbar no-print">
+  <div class="seg" id="fareSeg">
+    <button data-ft="ic" class="on">ICカード</button>
+    <button data-ft="ticket">きっぷ</button>
+  </div>
+  <button class="primary" onclick="window.print()">🖨 印刷 / PDF</button>
+  <button class="ghost" onclick="exportData()">💾 書き出し</button>
+  <button class="ghost" onclick="document.getElementById('imp').click()">📂 読み込み</button>
+  <input type="file" id="imp" accept=".json" hidden onchange="importData(event)">
+  <button class="danger" onclick="clearMonth()">🗑 当月クリア</button>
+</div>
+
+<div class="month-nav no-print">
+  <button class="navbtn" onclick="shiftMonth(-1)">‹</button>
+  <span class="title" id="monthTitle"></span>
+  <button class="navbtn" onclick="shiftMonth(1)">›</button>
+</div>
+<div class="title" id="monthTitlePrint" style="display:none;"></div>
+
+<table class="cal">
+  <thead><tr>
+    <th class="sun">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th class="sat">土</th>
+  </tr></thead>
+  <tbody id="calBody"></tbody>
+</table>
+
+<div class="summary">
+  <div>
+    <div class="lbl">この月の合計（<span id="ftLabel">ICカード</span>）</div>
+    <div class="big" id="monthTotal">0円</div>
+  </div>
+  <div style="text-align:right;">
+    <div class="lbl" id="dayCount">記録のある日：0日</div>
+    <div class="lbl" id="tripCount">行程数：0件</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <div id="legs"></div>
+    <button class="ghost" onclick="addLeg()" style="font-size:12px;padding:5px 10px;">＋ 経由・行き先を追加</button>
+    <label class="rt"><input type="checkbox" id="rt" checked> 🔁 最後に町田へ戻る（往復）</label>
+    <input class="memo" id="memo" placeholder="メモ（現場名など・任意）">
+    <div class="preview">
+      <span style="font-size:13px;color:#c67;">この行程の運賃</span>
+      <b id="entryTotal">0円</b>
+    </div>
+    <div class="note" id="routePreview"></div>
+    <div class="existing" id="existing"></div>
+    <div class="m-actions">
+      <button class="danger" onclick="closeModal()">閉じる</button>
+      <button class="primary" onclick="saveEntry()">＋ この行程を追加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 小田急線 駅データ：町田からの経路キロ程 ===== */
+const ST = {
+  "町田":{km:0},
+  // --- 小田原線 新宿方面 ---
+  "玉川学園前":{km:1.8},"鶴川":{km:4.4},"柿生":{km:6.8},"新百合ヶ丘":{km:8.8},
+  "百合ヶ丘":{km:9.9},"読売ランド前":{km:11.2},"生田":{km:12.4},"向ヶ丘遊園":{km:14.5},
+  "登戸":{km:15.2},"和泉多摩川":{km:16.3},"狛江":{km:17.3},"喜多見":{km:18.4},
+  "成城学園前":{km:19.8},"祖師ヶ谷大蔵":{km:21.0},"千歳船橋":{km:22.1},"経堂":{km:23.4},
+  "豪徳寺":{km:24.3},"梅ヶ丘":{km:25.2},"世田谷代田":{km:26.1},"下北沢":{km:26.7},
+  "東北沢":{km:27.4},"代々木上原":{km:28.0},"代々木八幡":{km:28.7},"参宮橋":{km:29.7},
+  "南新宿":{km:30.8},"新宿":{km:31.5},
+  // --- 小田原線 小田原方面 ---
+  "相模大野":{km:3.4},"小田急相模原":{km:5.8},"相武台前":{km:8.7},"座間":{km:10.5},
+  "海老名":{km:14.0},"厚木":{km:15.2},"本厚木":{km:16.3},"愛甲石田":{km:19.6},
+  "伊勢原":{km:23.0},"鶴巻温泉":{km:26.8},"東海大学前":{km:27.9},"秦野":{km:31.5},
+  "渋沢":{km:35.4},"新松田":{km:41.6},"開成":{km:43.6},"栢山":{km:45.0},
+  "富水":{km:46.2},"螢田":{km:47.4},"足柄":{km:48.6},"小田原":{km:50.0},
+  // --- 多摩線 ---
+  "五月台":{km:10.4},"栗平":{km:11.5},"黒川":{km:13.3},"はるひ野":{km:14.1},
+  "小田急永山":{km:15.9},"小田急多摩センター":{km:17.4},"唐木田":{km:18.9},
+  // --- 江ノ島線 ---
+  "東林間":{km:5.0},"中央林間":{km:6.3},"南林間":{km:7.2},"鶴間":{km:8.3},
+  "大和":{km:9.9},"桜ヶ丘":{km:12.0},"高座渋谷":{km:14.0},"長後":{km:16.3},
+  "湘南台":{km:18.4},"六会日大前":{km:20.0},"善行":{km:22.4},"藤沢本町":{km:24.1},
+  "藤沢":{km:25.4},"本鵠沼":{km:26.9},"鵠沼海岸":{km:27.8},"片瀬江ノ島":{km:28.6}
+};
+
+/* 路線グループ（駅間距離を経路に沿って正しく出すための系統定義） */
+const LINES = {
+  odawaraShinjuku:["町田","玉川学園前","鶴川","柿生","新百合ヶ丘","百合ヶ丘","読売ランド前","生田","向ヶ丘遊園","登戸","和泉多摩川","狛江","喜多見","成城学園前","祖師ヶ谷大蔵","千歳船橋","経堂","豪徳寺","梅ヶ丘","世田谷代田","下北沢","東北沢","代々木上原","代々木八幡","参宮橋","南新宿","新宿"],
+  odawaraSouth:["町田","相模大野","小田急相模原","相武台前","座間","海老名","厚木","本厚木","愛甲石田","伊勢原","鶴巻温泉","東海大学前","秦野","渋沢","新松田","開成","栢山","富水","螢田","足柄","小田原"],
+  tama:["町田","新百合ヶ丘","五月台","栗平","黒川","はるひ野","小田急永山","小田急多摩センター","唐木田"],
+  enoshima:["町田","相模大野","東林間","中央林間","南林間","鶴間","大和","桜ヶ丘","高座渋谷","長後","湘南台","六会日大前","善行","藤沢本町","藤沢","本鵠沼","鵠沼海岸","片瀬江ノ島"]
+};
+
+/* 小田急 距離帯運賃表 [上限km, きっぷ, IC] */
+const FARE_TABLE = [
+  [3, 140, 136],[6, 160, 157],[9, 190, 189],[12, 220, 220],[15, 250, 251],
+  [18, 280, 283],[21, 310, 314],[24, 340, 346],[27, 370, 377],[31, 400, 398],
+  [35, 420, 419],[39, 460, 461],[43, 500, 502],[47, 540, 544],[51, 590, 586],
+  [55, 630, 627],[999, 670, 669]
+];
+function fareFromKm(km, ft){
+  for(const [max,tk,ic] of FARE_TABLE){
+    if(km<=max+1e-6) return ft==="ic"?ic:tk;
+  }
+  return ft==="ic"?669:670;
+}
+
+/* 2駅間のキロ */
+function kmBetween(a,b){
+  if(a===b) return 0;
+  for(const key in LINES){
+    const arr=LINES[key];
+    if(arr.indexOf(a)>=0 && arr.indexOf(b)>=0) return Math.abs(ST[a].km-ST[b].km);
+  }
+  const hubs=["相模大野","新百合ヶ丘","町田"];
+  let best=Infinity;
+  for(const h of hubs){
+    const ka=reachKm(a,h), kb=reachKm(b,h);
+    if(ka!=null&&kb!=null) best=Math.min(best,ka+kb);
+  }
+  return best===Infinity?Math.abs(ST[a].km-ST[b].km):best;
+}
+function reachKm(st,hub){
+  if(st===hub) return 0;
+  for(const key in LINES){
+    const arr=LINES[key];
+    if(arr.includes(st)&&arr.includes(hub)) return Math.abs(ST[st].km-ST[hub].km);
+  }
+  return null;
+}
+function legFare(from,to,ft){
+  if(from===to) return 0;
+  return fareFromKm(kmBetween(from,to),ft);
+}
+
+const STATIONS=Object.keys(ST).filter(s=>s!=="町田");
+
+/* ===== 状態 ===== */
+const KEY="odakyu_fare_note_v2";
+let data=JSON.parse(localStorage.getItem(KEY)||"{}");
+let ft="ic";
+let cur=new Date(), Y=cur.getFullYear(), M=cur.getMonth();
+let editKey=null;
+
+document.querySelectorAll("#fareSeg button").forEach(b=>{
+  b.onclick=()=>{ft=b.dataset.ft;document.querySelectorAll("#fareSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");document.getElementById("ftLabel").textContent=ft==="ic"?"ICカード":"きっぷ";render();};
+});
+function shiftMonth(d){M+=d;if(M<0){M=11;Y--;}if(M>11){M=0;Y++;}render();}
+function dkey(y,m,d){return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+
+function entryTotal(e,ft){
+  let total=0,prev="町田";
+  for(const s of e.legs){total+=legFare(prev,s,ft);prev=s;}
+  if(e.roundTrip) total+=legFare(prev,"町田",ft);
+  return total;
+}
+
+function render(){
+  const t=`${Y}年 ${M+1}月`;
+  document.getElementById("monthTitle").textContent=t;
+  document.getElementById("monthTitlePrint").textContent="🚃 "+t+" 運賃記録";
+  const first=new Date(Y,M,1), startDow=first.getDay();
+  const dim=new Date(Y,M+1,0).getDate();
+  const tb=document.getElementById("calBody");tb.innerHTML="";
+  const today=new Date();
+  let day=1-startDow, mTotal=0, wDays=0, trips=0;
+  for(let w=0;w<6&&day<=dim;w++){
+    const tr=document.createElement("tr");
+    for(let dow=0;dow<7;dow++,day++){
+      const td=document.createElement("td");
+      if(day<1||day>dim){td.className="other";}
+      else{
+        if(dow===0)td.classList.add("sun");if(dow===6)td.classList.add("sat");
+        if(Y===today.getFullYear()&&M===today.getMonth()&&day===today.getDate())td.classList.add("today");
+        td.classList.add("clickable");
+        const thisDay=day;                       // ← 各セルの日付を固定
+        const k=dkey(Y,M,thisDay);
+        td.innerHTML=`<div class="daynum">${thisDay}</div>`;
+        const es=data[k]||[];
+        let dTotal=0;
+        if(es.length){
+          const box=document.createElement("div");box.className="entries";
+          es.forEach(e=>{
+            const v=entryTotal(e,ft);dTotal+=v;trips++;
+            const c=document.createElement("div");c.className="chip";
+            c.textContent=(e.memo?"📍"+e.memo+" ":"")+e.legs.join("→")+" "+v+"円";
+            box.appendChild(c);
+          });
+          td.appendChild(box);
+          const dt=document.createElement("div");dt.className="day-total";dt.textContent=dTotal+"円";
+          td.appendChild(dt);
+          mTotal+=dTotal;wDays++;
+        }else{
+          const p=document.createElement("div");p.className="plus";p.textContent="＋";td.appendChild(p);
+        }
+        td.onclick=()=>openModal(k,thisDay);     // ← 固定した日付を渡す
+      }
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+  document.getElementById("monthTotal").textContent=mTotal.toLocaleString()+"円";
+  document.getElementById("dayCount").textContent="記録のある日："+wDays+"日";
+  document.getElementById("tripCount").textContent="行程数："+trips+"件";
+}
+
+/* ===== モーダル ===== */
+function opts(sel){return STATIONS.map(s=>`<option ${s===sel?"selected":""}>${s}</option>`).join("");}
+function addLeg(v){
+  const c=document.getElementById("legs");
+  const div=document.createElement("div");div.className="leg";
+  div.innerHTML=`<span class="from"></span>
+    <select onchange="updatePreview()">${opts(v||STATIONS[0])}</select>
+    <span class="fare"></span>
+    <button class="del" onclick="this.parentNode.remove();updatePreview()">×</button>`;
+  c.appendChild(div);updatePreview();
+}
+function openModal(k,day){
+  editKey=k;
+  document.getElementById("modalTitle").textContent=`${Y}年${M+1}月${day}日 の行程`;
+  document.getElementById("legs").innerHTML="";
+  addLeg();
+  document.getElementById("rt").checked=true;
+  document.getElementById("memo").value="";
+  renderExisting(k);updatePreview();
+  document.getElementById("overlay").classList.add("open");
+}
+function closeModal(){document.getElementById("overlay").classList.remove("open");editKey=null;}
+function legStations(){return [...document.querySelectorAll("#legs select")].map(s=>s.value);}
+function updatePreview(){
+  const rt=document.getElementById("rt").checked;
+  const rows=document.querySelectorAll("#legs .leg");
+  let prev="町田",total=0,route="町田";
+  rows.forEach(r=>{
+    const to=r.querySelector("select").value;
+    const f=legFare(prev,to,ft);
+    r.querySelector(".from").textContent=prev+" →";
+    r.querySelector(".fare").textContent=f+"円";
+    total+=f;prev=to;route+="→"+to;
+  });
+  if(rt){total+=legFare(prev,"町田",ft);route+="→町田";}
+  document.getElementById("entryTotal").textContent=total.toLocaleString()+"円";
+  document.getElementById("routePreview").textContent="経路："+route;
+}
+function saveEntry(){
+  if(!editKey)return;
+  const legs=legStations();if(!legs.length){alert("行き先を選んでね");return;}
+  (data[editKey]=data[editKey]||[]).push({legs,roundTrip:document.getElementById("rt").checked,memo:document.getElementById("memo").value.trim()});
+  save();renderExisting(editKey);render();
+  document.getElementById("legs").innerHTML="";addLeg();
+  document.getElementById("memo").value="";document.getElementById("rt").checked=true;updatePreview();
+}
+function renderExisting(k){
+  const box=document.getElementById("existing");const es=data[k]||[];
+  if(!es.length){box.innerHTML='<div class="note">まだ登録がありません 🌱</div>';return;}
+  box.innerHTML="<div style='font-size:12px;font-weight:bold;color:#c67;margin-bottom:6px;'>登録済み</div>";
+  es.forEach((e,i)=>{
+    const route="町田→"+e.legs.join("→")+(e.roundTrip?"→町田":"");
+    const d=document.createElement("div");d.className="exi";
+    d.innerHTML=`<span>${e.memo?"📍"+e.memo+" ":""}${route} <b style="color:#2bb08a;">${entryTotal(e,ft)}円</b></span>`;
+    const del=document.createElement("button");del.className="del";del.textContent="削除";
+    del.onclick=()=>{data[k].splice(i,1);if(!data[k].length)delete data[k];save();renderExisting(k);render();};
+    d.appendChild(del);box.appendChild(d);
+  });
+}
+
+/* ===== 保存・入出力 ===== */
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function clearMonth(){
+  if(!confirm(`${Y}年${M+1}月の記録を全部消しますか？`))return;
+  const pre=`${Y}-${String(M+1).padStart(2,"0")}-`;
+  Object.keys(data).forEach(k=>{if(k.startsWith(pre))delete data[k];});
+  save();render();
+}
+function exportData(){
+  const b=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download="odakyu_fare_note.json";a.click();
+}
+function importData(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{const imp=JSON.parse(r.result);
+    if(confirm("既存データに統合しますか？（キャンセルで全置換）"))Object.assign(data,imp);else data=imp;
+    save();render();}catch(e){alert("読み込み失敗");}};
+  r.readAsText(f);ev.target.value="";
+}
+
+render();
+</script>
+</body>
+</html>
