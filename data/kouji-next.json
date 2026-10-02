@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907534550,
+  "updatedAt": 1790907598392,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907534550,
+    "updatedAt": 1790907598392,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -251,6 +251,23 @@
         "station": "",
         "location": "",
         "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqc402qhtt7",
+        "title": "1種電気工事士　1次試験",
+        "date": "2026-10-17",
+        "endDate": "2026-10-17",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "cmuqc1riv95st",
+        "station": "",
+        "location": "平塚駅",
+        "note": "16：00",
         "showAs": "free",
         "reminder": null,
         "recur": null,
