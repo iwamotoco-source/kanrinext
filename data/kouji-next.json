@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907478129,
+  "updatedAt": 1790907534550,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907478129,
+    "updatedAt": 1790907534550,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -231,6 +231,23 @@
         "end": "",
         "allDay": true,
         "categoryId": "work",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqc2qyc9qwo",
+        "title": "1種電気工事士　学習期間",
+        "date": "2026-10-01",
+        "endDate": "2026-10-16",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "cmuqc1riv95st",
         "station": "",
         "location": "",
         "note": "",
