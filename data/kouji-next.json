@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907598392,
+  "updatedAt": 1790907675660,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907598392,
+    "updatedAt": 1790907675660,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -268,6 +268,23 @@
         "station": "",
         "location": "平塚駅",
         "note": "16：00",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqc6uj00yfs",
+        "title": "現場明け",
+        "date": "2026-10-16",
+        "endDate": "2026-10-16",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "",
+        "location": "",
+        "note": "",
         "showAs": "free",
         "reminder": null,
         "recur": null,
