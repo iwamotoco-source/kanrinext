@@ -146,10 +146,12 @@
   /* core.js の同期処理を安全版へ差し替え。scheduleSync / 自動同期タイマーも実行時にこの関数を参照する。 */
   syncNow=secureSyncNow;
 
-  /* 設定画面に暗号化設定を追加 */
-  const originalOpenSettings=openSettings;
-  openSettings=function(tab='general'){
-    originalOpenSettings(tab);
+  /* 設定画面に暗号化設定を追加。app.js読込後に差し替える */
+  function installSettingsPatch(){
+    if(typeof openSettings!=='function'){setTimeout(installSettingsPatch,0);return}
+    const originalOpenSettings=openSettings;
+    openSettings=function(tab='general'){
+      originalOpenSettings(tab);
     const sec=document.querySelector('.setSec[data-sec="sync"]');if(!sec||sec.querySelector('#syncEncrypt'))return;
     const c=cfg(),box=document.createElement('div');box.className='cryptoBox';
     box.innerHTML=`<h4>同期データの暗号化</h4>
@@ -183,11 +185,13 @@
       const orig=save.onclick;
       save.onclick=async ev=>{if(!prep())return;await orig.call(save,ev);saveCfg({enabled:en.checked})};
     }
-    ['ghPull','ghPush'].forEach(id=>{
-      const b=document.getElementById(id);if(!b||!b.onclick)return;const orig=b.onclick;
-      b.onclick=async ev=>{if(!prep())return;return orig.call(b,ev)};
-    });
-  };
+      ['ghPull','ghPush'].forEach(id=>{
+        const b=document.getElementById(id);if(!b||!b.onclick)return;const orig=b.onclick;
+        b.onclick=async ev=>{if(!prep())return;return orig.call(b,ev)};
+      });
+    };
+  }
+  setTimeout(installSettingsPatch,0);
 
   /* 初回導入時は安全側：GitHub同期の暗号化を既定でONにする */
   if(!loadJSON(CFG_KEY,null))saveCfg(DEFAULT_CFG);
