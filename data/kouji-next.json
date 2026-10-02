@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790905755310,
+  "updatedAt": 1790905777222,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790905755310,
+    "updatedAt": 1790905777222,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -28,6 +28,18 @@
         "stationId": "",
         "priority": "normal",
         "date": "2026-10-30",
+        "time": "",
+        "note": ""
+      },
+      {
+        "id": "tmuqb25omfqzx",
+        "done": false,
+        "created": 1790905777222,
+        "title": "狛江照度測定書類",
+        "stationName": "狛江",
+        "stationId": "odawara-16",
+        "priority": "normal",
+        "date": "",
         "time": "",
         "note": ""
       }
