@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907675660,
+  "updatedAt": 1790907682081,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907675660,
+    "updatedAt": 1790907682081,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -278,6 +278,23 @@
         "title": "現場明け",
         "date": "2026-10-16",
         "endDate": "2026-10-16",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqc6zhdmou8",
+        "title": "現場明け",
+        "date": "2026-10-23",
+        "endDate": "2026-10-23",
         "start": "",
         "end": "",
         "allDay": true,
