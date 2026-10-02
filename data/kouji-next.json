@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790908154481,
+  "updatedAt": 1790908160955,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790908154481,
+    "updatedAt": 1790908160955,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -251,7 +251,7 @@
         "station": "",
         "location": "",
         "note": "",
-        "showAs": "free",
+        "showAs": "busy",
         "reminder": null,
         "recur": null,
         "exdates": []
