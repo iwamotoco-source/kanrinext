@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790908001480,
+  "updatedAt": 1790908009361,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790908001480,
+    "updatedAt": 1790908009361,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -309,7 +309,7 @@
       },
       {
         "id": "emuqcddv26bgk",
-        "title": "搬入:経堂OX15時（コピー）",
+        "title": "搬入:経堂OX15時",
         "date": "2026-10-13",
         "endDate": "2026-10-13",
         "start": "",
