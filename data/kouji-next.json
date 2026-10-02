@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790906471332,
-  "deviceId": "dev-wx8e7gan91amuqbetqi",
+  "updatedAt": 1790907478129,
+  "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790906471332,
+    "updatedAt": 1790907478129,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -258,6 +258,18 @@
         "name": "その他",
         "color": "#6f7b86",
         "locked": true
+      },
+      {
+        "id": "cmuqc1riv95st",
+        "name": "資格",
+        "color": "#2f8f83",
+        "locked": false
+      },
+      {
+        "id": "cmuqc1s7gy4ig",
+        "name": "ワークアウト",
+        "color": "#8e2e2e",
+        "locked": false
       }
     ],
     "bookmarks": [],
