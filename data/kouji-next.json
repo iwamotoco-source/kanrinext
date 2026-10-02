@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790905737334,
+  "updatedAt": 1790905755310,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790905737334,
+    "updatedAt": 1790905755310,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -16,6 +16,18 @@
         "stationId": "",
         "priority": "normal",
         "date": "2026-11-07",
+        "time": "",
+        "note": ""
+      },
+      {
+        "id": "tmuqb1orymgsz",
+        "done": false,
+        "created": 1790905755310,
+        "title": "IR安全運転教育受講",
+        "stationName": "",
+        "stationId": "",
+        "priority": "normal",
+        "date": "2026-10-30",
         "time": "",
         "note": ""
       }
