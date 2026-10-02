@@ -1,12 +1,25 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790905643944,
+  "updatedAt": 1790905737334,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790905643944,
-    "tasks": [],
+    "updatedAt": 1790905737334,
+    "tasks": [
+      {
+        "id": "tmuqb1awmr06s",
+        "done": false,
+        "created": 1790905737334,
+        "title": "IRストレスチェック受講",
+        "stationName": "",
+        "stationId": "",
+        "priority": "normal",
+        "date": "2026-11-07",
+        "time": "",
+        "note": ""
+      }
+    ],
     "events": [
       {
         "id": "emuqaiyucuurw",
