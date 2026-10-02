@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790908178877,
+  "updatedAt": 1790908185919,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790908178877,
+    "updatedAt": 1790908185919,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -132,7 +132,7 @@
         "station": "渋沢",
         "location": "",
         "note": "",
-        "showAs": "free",
+        "showAs": "busy",
         "reminder": null,
         "recur": null,
         "exdates": []
