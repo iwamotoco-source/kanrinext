@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790908185919,
+  "updatedAt": 1790908217029,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790908185919,
+    "updatedAt": 1790908217029,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -346,6 +346,23 @@
         "title": "2球電気工事施工管理技士　学習期間",
         "date": "2026-11-01",
         "endDate": "2026-11-07",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "cmuqc1riv95st",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "busy",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqcieb2mvve",
+        "title": "1種電気工事士　技能試験",
+        "date": "2026-11-21",
+        "endDate": "2026-11-21",
         "start": "",
         "end": "",
         "allDay": true,
