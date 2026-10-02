@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907977031,
+  "updatedAt": 1790907987611,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907977031,
+    "updatedAt": 1790907987611,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -317,6 +317,23 @@
         "allDay": true,
         "categoryId": "work",
         "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqcddv26bgk",
+        "title": "搬入:経堂OX15時（コピー）",
+        "date": "2026-10-13",
+        "endDate": "2026-10-13",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "経堂",
         "location": "",
         "note": "",
         "showAs": "free",
