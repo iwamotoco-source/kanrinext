@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790907899876,
+  "updatedAt": 1790907977031,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790907899876,
+    "updatedAt": 1790907977031,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -295,6 +295,23 @@
         "title": "現場明け",
         "date": "2026-10-23",
         "endDate": "2026-10-23",
+        "start": "",
+        "end": "",
+        "allDay": true,
+        "categoryId": "work",
+        "station": "",
+        "location": "",
+        "note": "",
+        "showAs": "free",
+        "reminder": null,
+        "recur": null,
+        "exdates": []
+      },
+      {
+        "id": "emuqcdb2fs8g8",
+        "title": "搬入:経堂OX15時",
+        "date": "2026-10-13",
+        "endDate": "2026-10-13",
         "start": "",
         "end": "",
         "allDay": true,
