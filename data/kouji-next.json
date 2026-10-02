@@ -1,11 +1,11 @@
 {
   "app": "工事管理next",
   "schema": 2,
-  "updatedAt": 1790908172600,
+  "updatedAt": 1790908178877,
   "deviceId": "dev-wxzf1cq6d9smuqager2",
   "state": {
     "version": 2,
-    "updatedAt": 1790908172600,
+    "updatedAt": 1790908178877,
     "tasks": [
       {
         "id": "tmuqb1awmr06s",
@@ -268,7 +268,7 @@
         "station": "",
         "location": "平塚駅",
         "note": "16：00",
-        "showAs": "free",
+        "showAs": "busy",
         "reminder": null,
         "recur": null,
         "exdates": []
