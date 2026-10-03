@@ -1,0 +1,34 @@
+/* 工事管理next AI Workspace — file/voice/action UI layered on the stable assistant */
+'use strict';
+(function(){
+  const HISTORY_KEY='koujiNextAiHistoryV2',MAX_FILE=2.5*1024*1024,MAX_TOTAL=2.8*1024*1024,MAX_FILES=4;
+  let history=[],files=[],sessionId='',recording=null;
+  const ACTIONS={};
+  const cfg=()=>Object.assign({enabled:false,endpoint:'https://kanrinext.vercel.app/api/ai',accessKey:'',preferLocal:true,autoSpeak:false},localCfg.ai||{});
+  const clean=s=>String(s||'').replace(/[\s\u200B-\u200D\u2060\uFEFF]+/g,'').replace(/^["'`]+|["'`]+$/g,'');
+  const wsEndpoint=()=>{try{const u=new URL(cfg().endpoint||'https://kanrinext.vercel.app/api/ai',location.href);u.search='';u.hash='';u.pathname=u.pathname.replace(/\/api\/ai\/?$/,'/api/ai-workspace').replace(/\/+$/,'');return u.toString()}catch{return'https://kanrinext.vercel.app/api/ai-workspace'}};
+  const esc2=s=>esc(String(s??''));
+  const svg=d=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const I={clip:svg('M8.5 12.5 14 7a3 3 0 0 1 4.2 4.2l-7 7a5 5 0 0 1-7.1-7.1l7.4-7.4'),camera:svg('M4 8h3l1.5-2h7L17 8h3v11H4z M12 10.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6'),mic:svg('M12 4a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3 M6 11v1a6 6 0 0 0 12 0v-1 M12 18v3'),speaker:svg('M5 10h4l4-3v10l-4-3H5z M16 9a5 5 0 0 1 0 6 M18 6a9 9 0 0 1 0 12'),plus:svg('M12 5v14M5 12h14')};
+
+  function sessions(){const a=loadJSON(HISTORY_KEY,[]);return Array.isArray(a)?a:[]}
+  function ensureSession(){let ss=sessions(),s=ss.find(x=>x.id===sessionId);if(!s){s={id:'s'+Date.now().toString(36),title:'新しい会話',updatedAt:Date.now(),messages:[]};sessionId=s.id;ss.unshift(s);saveJSON(HISTORY_KEY,ss.slice(0,12))}return s}
+  function persist(){let ss=sessions(),s=ss.find(x=>x.id===sessionId);if(!s){s=ensureSession();ss=sessions()}s.messages=history.slice(-60).map(x=>({role:x.role,text:x.text,meta:x.meta?{sources:x.meta.sources||[]}:undefined}));s.updatedAt=Date.now();s.title=(history.find(x=>x.role==='user')?.text||'新しい会話').slice(0,34);saveJSON(HISTORY_KEY,ss.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,12))}
+  function newSession(){history=[];files=[];sessionId='';ensureSession()}
+  function loadSession(id){const s=sessions().find(x=>x.id===id);if(!s)return;sessionId=id;history=Array.isArray(s.messages)?s.messages.slice():[];files=[]}
+
+  function speak(text){if(!('speechSynthesis'in window))return toast('このブラウザは読み上げに対応していません');speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='ja-JP';u.rate=1;const vs=speechSynthesis.getVoices();u.voice=vs.find(v=>/^ja/i.test(v.lang))||null;speechSynthesis.speak(u)}
+  function kind(f){const n=(f.name||'').toLowerCase(),t=f.type||'';if(t.startsWith('image/'))return'image';if(t==='application/pdf'||n.endsWith('.pdf'))return'pdf';if(/\.(xlsx?|csv|tsv)$/i.test(n))return'spreadsheet';return'document'}
+  function dataUrl(file){return new Promise((ok,ng)=>{const r=new FileReader();r.onload=()=>ok(String(r.result||''));r.onerror=ng;r.readAsDataURL(file)})}
+  async function addFiles(list,box){let total=files.reduce((n,f)=>n+f.size,0);for(const f of Array.from(list||[])){if(files.length>=MAX_FILES){toast(`添付は最大${MAX_FILES}件です`);break}if(f.size>MAX_FILE){toast(`${f.name} は2.5MBを超えるため添付できません`);continue}if(total+f.size>MAX_TOTAL){toast('添付の合計は約2.8MBまでです');break}files.push({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:f.name,type:f.type||'application/octet-stream',size:f.size,kind:kind(f),dataUrl:await dataUrl(f)});total+=f.size}refresh(box)}
+  const fmtBytes=n=>n<1024?`${n}B`:n<1048576?`${Math.round(n/1024)}KB`:`${(n/1048576).toFixed(1)}MB`;
+
+  async function post(body){const c=cfg(),key=clean(c.accessKey);if(!c.enabled)throw new Error('AI設定で「外部AIを使用する」を有効にしてください');if(!key)throw new Error('AIアクセスキーが未設定です');let r;try{r=await fetch(wsEndpoint(),{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',headers:{'Content-Type':'application/json','X-App-Key':key},body:JSON.stringify(body)})}catch{throw new Error('AIサーバーへ接続できません')};let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||d.detail||`AI ${r.status}`);return d}
+  function compactContext(){const c=cfg(),from=addDays(todayISO(),-120),to=addDays(todayISO(),370);return{today:todayISO(),tasks:state.tasks.map(t=>({id:t.id,title:t.title,station:t.stationName||'',priority:t.priority||'normal',date:taskDate(t)||'',time:t.time||'',done:!!t.done,...(c.sendNotes&&t.note?{note:t.note}:{})})),events:state.events.filter(e=>(e.endDate||e.date)>=from&&e.date<=to).map(e=>({id:e.id,title:e.title,date:e.date,endDate:e.endDate||e.date,start:e.start||'',end:e.end||'',allDay:!!e.allDay,station:e.station||'',location:e.location||'',category:category(e.categoryId).name,...(c.sendNotes&&e.note?{note:e.note}:{})}))}}
+  function complex(q){return files.length>0||/(理由|優先すべき|優先順位|判断|比較|分析|提案|おすすめ|どうすれば|どうしたら|整理して|考えて|リスク|忙しそう|負荷|段取り|3つ|三つ|順位|最適)/.test(String(q||''))}
+  async function remote(q){const d=await post({query:q,context:compactContext(),conversation:history.slice(-10,-1).map(x=>({role:x.role,text:x.text})),attachments:files.map(f=>({name:f.name,type:f.type,kind:f.kind,dataUrl:f.dataUrl}))});return{text:String(d.answer||''),meta:d.meta||{}}}
+
+  function register(name,fn){ACTIONS[name]=fn}
+  const title=v=>String(v||'').trim().slice(0,160),date=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''))?String(v):'',time=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||''))?String(v):'';
+  register('tasks.createTasks',a=>{const undo=snapshot(),made=[];(a.items||[]).slice(0,50).forEach(x=>{const t=title(x.title);if(!t)return;const st=findStation(x.station),p=['high','mid','normal'].includes(x.priority)?x.priority:'normal',o={id:uid('t'),title:t,stationName:st?.name||'',stationId:st?.folderId||'',priority:p,date:date(x.date),time:time(x.time),note:String(x.note||'').slice(0,1200),done:false,created:Date.now()};state.tasks.push(o);made.push(o)});if(made.length){commit();toast(`${made.length}件のタスクを追加しました`,{label:'元に戻す',run:undo})}return made.length});
+  register('calendar.createEvents',a=>{const undo=snapshot(),made=[];(a.items||[]).slice(0,80).forEach(x=>{const t=title(x.title),d=date(x.date);if(!t||!d)return;const st=findStation(x.station),ad=!!x.allDay,cat=state.categories.find(c=>c.id===x.category||c.name===x.category)||state.categories.find(c=>c.id==='work')||state.categories[0];let ev=typeof newEventFrom==='function'&&typeof newEventDefaults==='function'?newEventFrom(newEventDefaults(d)):{id:uid('e'),created:Date.now()};Object.assign(ev,{title:t,categoryId:cat?.id||'work',showAs:'busy',allDay:ad,date:d,endDate:date(x.endDate)||d,start:
