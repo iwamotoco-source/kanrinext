@@ -79,6 +79,9 @@ const VARIANTS=[
 let workingVariant=0;   /* インスタンス内で記憶 */
 
 /* ---- エラー分類（Google のエラー本文: {error:{code,message,status}}） ---- */
+/* 一時的な障害（混雑・内部エラー）。同じモデルを一度だけ短く待って再試行し、だめなら次のGeminiモデルへ */
+const isTransient=(status,err)=>status>=500||['UNAVAILABLE','INTERNAL','DEADLINE_EXCEEDED'].includes(String(err?.status||''));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function classify(status,err){
   const st=String(err?.status||''),msg=String(err?.message||'');
   const reasons=JSON.stringify(err?.details||[]);
@@ -147,6 +150,10 @@ const provider={
           /* 400: モデルが未知のフィールド（thinking/schema形式）を受け付けない可能性 → 次の形式へ */
         }
         if(vi>=VARIANTS.length)vi=VARIANTS.length-1;
+        if(!res.r.ok&&isTransient(res.r.status,res.data?.error)&&!req.signal?.aborted){
+          await sleep(600);
+          res=await post(key,model,buildBody(req,VARIANTS[vi]),req.signal);
+        }
         const {r,data}=res;
         if(r.ok){
           workingVariant=vi;
@@ -165,7 +172,8 @@ const provider={
         }
         const code=classify(r.status,data?.error);
         last={ok:false,provider:'gemini',code,status:502,detail:redact(data?.error?.message||`HTTP ${r.status}`),model};
-        if(code!=='MODEL_UNAVAILABLE')break;
+        /* モデル未提供・無料枠(モデルごとに別枠)・一時障害のときだけ次のGeminiモデルを試す。キー不正・安全フィルタ等では続けない */
+        if(code!=='MODEL_UNAVAILABLE'&&code!=='GEMINI_QUOTA'&&!(code==='GEMINI_ERROR'&&isTransient(r.status,data?.error)))break;
       }
       return last;
     }catch(e){
