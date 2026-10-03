@@ -63,11 +63,14 @@
   /* AIへ送る登録データ。毎回全部は送らず、質問に関係する期間・状態だけに絞る。 */
   function buildContext(q,opt){
     const today=todayISO(),c=cfg(),empty={payload:null,counts:{events:0,tasks:0},range:null};
-    if(c.sendSchedule===false)return Object.assign(empty,{off:true});
+    const prof=String(c.profile||'').trim();
+    if(c.sendSchedule===false)return Object.assign(empty,{off:true,profile:prof});
     const notes=!!c.sendNotes;
     let from=addDays(today,-14),to=addDays(today,75);
+    const hasAtt=!!(opt.hasAtt||(S.atts&&S.atts.length));
+    if(hasAtt){from=addDays(today,-30);to=addDays(today,400)}   /* 工程表の取り込み・改訂照合: 先の予定まで見せる */
     try{const r=AI().rangeOfQuery(q);if(r){from=addDays(r.from,-1);to=addDays(r.to,1)}}catch(e){}
-    const events=opt.events?occurrencesBetween(from,to,{}).slice(0,300).map(o=>({
+    const events=opt.events?occurrencesBetween(from,to,{}).slice(0,hasAtt?600:300).map(o=>({
       id:o.id,title:o.title,date:o.date,endDate:o.endDate||o.date,start:o.start||'',end:o.end||'',allDay:!!o.allDay,station:o.station||'',
       location:o.location||'',category:category(o.categoryId).name,...(o.rec?{recurring:true}:{}),...(notes&&o.note?{note:o.note}:{})
     })):[];
@@ -77,7 +80,7 @@
       if(/完了|終わ|済/.test(q))ts=ts.concat(state.tasks.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).slice(0,60));
       ts=ts.slice(0,300).map(t=>({id:t.id,title:t.title,station:t.stationName||'',priority:t.priority||'normal',date:taskDate(t)||'',time:t.time||'',done:!!t.done,...(notes&&t.note?{note:t.note}:{})}));
     }
-    return {payload:{today,events,tasks:ts},counts:{events:events.length,tasks:ts.length},range:{from,to}};
+    return {payload:{today,events,tasks:ts,...(prof?{profile:prof}:{})},counts:{events:events.length,tasks:ts.length},range:{from,to}};
   }
 
   /* ---------- 会話 ---------- */
@@ -394,6 +397,7 @@
       <div class="aiSugs">
         ${L('今日の予定は？',1)}${L('未完了のタスクは？',1)}${L('優先度が高いタスクは？',1)}${L('期限切れのタスクはある？',1)}${L('来週の予定をまとめて',1)}
         ${L('明日10時に厚木で現場調査',0)}
+        <button type="button" class="aiSug aiImp" data-imp="1">工程表を取り込む</button>
       </div>
       <div class="aiCaps">
         <div><b>端末内で回答</b><span>今日・今週の予定／未完了・優先度高・期限切れのタスク／駅ごとの予定／現場調査の件数</span></div>
@@ -417,6 +421,12 @@
       const inp=$q('#aiInput');inp.value=b.dataset.q;grow();
       if(b.dataset.go==='1')send();else{inp.focus();scheduleCtx(true)}
     });
+    const imp=host.querySelector('[data-imp]');
+    if(imp)imp.onclick=()=>{
+      const inp=$q('#aiInput'),pf=String(cfg().profile||'').trim();
+      inp.value=pf?'添付した工程表から、私の担当（前提に書いた工種）の予定を登録候補にして。登録済みの予定と重複するものは除き、日程だけ違うものは更新候補にして。':'添付した工程表から、電気工事の予定を登録候補にして。登録済みの予定と重複するものは除き、日程だけ違うものは更新候補にして。';
+      grow();$q('#aiFileDoc').click();inp.focus();scheduleCtx(true);
+    };
   }
   function refChips(m){
     const refs=[...(m.refs||[])];
@@ -574,7 +584,7 @@
       persist();return;
     }
 
-    const ctxOpt=Object.assign({},S.ctx);
+    const ctxOpt=Object.assign({},S.ctx,{hasAtt:S.atts.length>0});
     const ctx=buildContext(text,ctxOpt);
     /* 3) 添付の送信前確認（設定でオフ可）。キャンセルしても入力はそのまま残す */
     if(withFiles&&c.confirmFileSend!==false){
@@ -619,7 +629,7 @@
         .map(m=>({role:m.role==='user'?'user':'assistant',text:String(m.text||'').slice(0,1500)}));
       const body={mode:'workspace',today:todayISO(),
         messages:[...hist,{role:'user',text:text+(names.length?`\n（添付: ${names.join('、')}）`:'')}],
-        context:ctx.payload||{today:todayISO(),tasks:[],events:[]},
+        context:ctx.payload||{today:todayISO(),tasks:[],events:[],...(ctx.profile?{profile:ctx.profile}:{})},
         attachments:[
           ...built.images.map(i=>({kind:'image',name:i.name,label:i.label,data:i.data,detail:i.detail})),
           ...(built.pdfs||[]).map(p=>({kind:'pdf',name:p.name,label:p.label,data:p.data})),

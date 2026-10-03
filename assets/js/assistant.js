@@ -14,7 +14,7 @@
      localOnly 「ローカルのみ」（オンの間は外部AIへ何も送らない） */
   const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true,
     sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false,
-    provider:'gemini',fallbackToOpenAI:false,localOnly:false};
+    provider:'gemini',fallbackToOpenAI:false,localOnly:false,profile:''};
   const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI'};
   const providerOf=c=>(c&&c.provider==='openai')?'openai':'gemini';
   const providerLabel=p=>PROVIDER_LABEL[p]||String(p||'');
@@ -382,6 +382,9 @@
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendNotes" ${c.sendNotes?'checked':''}>外部AIへタスク・予定のメモも送る</label>
         <div style="height:1px;background:var(--line);margin:14px 0 4px"></div>
         <div class="hint" style="font-weight:700;margin-bottom:2px">AI Workspace</div>
+        <label style="display:block;margin-top:8px"><span class="hint" style="font-weight:700">AIに伝えておく前提（業務プロフィール）</span>
+          <textarea id="aiProfile" rows="4" maxlength="1500" placeholder="例：担当は電気設備工事。工程表では「電気」「弱電」の行だけが自分の担当。土日祝は休工。略語：EPS=電気シャフト、LAN=弱電…" style="width:100%;margin-top:4px">${esc(c.profile||'')}</textarea>
+          <small class="hint">担当工種・休工日・略語・よく使う現場などを書くと、工程表や図面の読み取りと質問の解釈に使われます（外部AIへ送られます。個人情報や機密は書かないでください）。</small></label>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="aiActions" ${c.actionsEnabled!==false?'checked':''}>AIによる操作候補（予定・タスクの追加/更新の提案。実行は必ず確認後）</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiConfirmFile" ${c.confirmFileSend!==false?'checked':''}>添付ファイルを送る前に内容を確認する</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSaveHistory" ${c.saveHistory!==false?'checked':''}>会話履歴をこの端末に保存する（ファイルの中身は保存しません）</label>
@@ -413,7 +416,7 @@
         refreshProv();
         /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
         const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked,
-          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,
+          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,profile:(($b('#aiProfile')||{}).value||'').trim().slice(0,1500),
           provider:(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini',fallbackToOpenAI:!!($b('#aiFallback')&&$b('#aiFallback').checked&&(box.querySelector('input[name=aiProv]:checked')||{}).value!=='openai')}};
         $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
         testBtn.onclick=async()=>{
