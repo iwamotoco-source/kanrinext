@@ -1,0 +1,38 @@
+name: Apply staged AI fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-ai-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild and validate patch
+        run: |
+          cat .patches/ai-fix.part* > /tmp/kanrinext-ai-fix.diff
+          git apply --check /tmp/kanrinext-ai-fix.diff
+
+      - name: Apply fix
+        run: |
+          git apply /tmp/kanrinext-ai-fix.diff
+          rm -rf .patches/ai-fix.part*
+          rm -f .github/workflows/apply-ai-fix.yml
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Apply Claude-reviewed AI connection fix"
+          git push origin HEAD:main
