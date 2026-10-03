@@ -346,7 +346,7 @@ function boot(){
   if('serviceWorker'in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
     /* 新しいSWが有効化されたら一度だけ再読込（モーダル入力中は閉じるまで待つ）。PWA復帰時にも更新確認する。 */
     const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;
-    const reloadWhenIdle=()=>{if(reloaded)return;if(modalOpen()){setTimeout(reloadWhenIdle,3000);return}reloaded=true;location.reload()};
+    const reloadWhenIdle=()=>{if(reloaded)return;/* AI Workspaceで入力・添付・応答待ち・録音中のときも再読込を待つ */if(modalOpen()||(window.KoujiAIWorkspace&&KoujiAIWorkspace.busyOrDirty&&KoujiAIWorkspace.busyOrDirty())){setTimeout(reloadWhenIdle,3000);return}reloaded=true;location.reload()};
     navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadCtrl)reloadWhenIdle()});
     navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(reg=>{
       document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});

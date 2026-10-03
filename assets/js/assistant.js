@@ -6,7 +6,11 @@
 'use strict';
 (function(){
   const AI_ENDPOINT_DEFAULT='https://kanrinext.vercel.app/api/ai';
-  const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true};
+  /* sendNotes/preferLocal は従来どおり。以下はAI Workspaceで追加した設定（既存の保存値は壊さず、無ければ既定値で補う）:
+     sendSchedule 外部AIへ予定/タスクを送る / actionsEnabled AIによる操作候補 / confirmFileSend 添付送信前の確認
+     saveHistory 会話履歴を端末に保存 / autoSpeak AI回答の自動読み上げ */
+  const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true,
+    sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false};
   let history=[];
 
   /* 設定は localCfg.ai（localStorage: koujiNextLocalConfigV1）だけに保存する。
@@ -171,20 +175,24 @@
     return {today:todayISO(),tasks,events};
   }
 
-  class AiError extends Error{constructor(msg,code,stage){super(msg);this.code=code||'';this.stage=stage||''}}
+  class AiError extends Error{constructor(msg,code,stage,detail){super(msg);this.code=code||'';this.stage=stage||'';this.detail=detail||''}}
 
   /* フロント → Vercel の唯一の送信口。X-App-Key はここで明示的に付ける（グローバルfetchは書き換えない）。 */
-  async function postAi(cfg,body){
+  async function postAi(cfg,body,opts={}){
     const {url}=normEndpoint(cfg.endpoint),key=cleanKey(cfg.accessKey);
     if(!url)throw new AiError('AIプロキシURLが未設定です','NO_ENDPOINT','config');
     if(!key)throw new AiError('AIアクセスキーが未入力です','ACCESS_KEY_MISSING','config');
     let r;
     try{
       r=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',
-        headers:{'Content-Type':'application/json','X-App-Key':key},body:JSON.stringify(body)});
-    }catch(e){throw new AiError('Vercel APIへ接続できません（通信・CORS）','NETWORK','network')}
+        headers:{'Content-Type':'application/json','X-App-Key':key},body:JSON.stringify(body),
+        ...(opts.signal?{signal:opts.signal}:{})});
+    }catch(e){
+      if(e&&e.name==='AbortError')throw new AiError('中止しました','ABORTED','client');
+      throw new AiError('Vercel APIへ接続できません（通信・CORS）','NETWORK','network');
+    }
     let data={};try{data=await r.json()}catch(e){}
-    if(!r.ok)throw new AiError(data.error||`AI ${r.status}`,data.code||`HTTP_${r.status}`,'server');
+    if(!r.ok)throw new AiError(data.error||`AI ${r.status}`,data.code||`HTTP_${r.status}`,'server',data.detail);
     return data;
   }
 
@@ -280,18 +288,32 @@
           <div style="display:flex;gap:6px"><input id="aiAccessKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1" placeholder="Vercelの APP_ACCESS_TOKEN と同じ文字列"><button class="btn" type="button" id="aiKeyShow">表示</button></div>
           <span class="hint">OpenAIの sk-... APIキーではありません。OpenAIキーはVercel側だけに置き、この端末には保存しません。ここにはVercelの APP_ACCESS_TOKEN と同じ文字列を入れます（この端末内にだけ保存）。</span></div>
         <label class="check" style="margin-top:14px"><input type="checkbox" id="aiPreferLocal" ${c.preferLocal!==false?'checked':''}>答えられる質問は端末内だけで集計する</label>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendSchedule" ${c.sendSchedule!==false?'checked':''}>外部AIへ予定・タスクを送る（オフにすると、登録データを参照せずに質問だけを送る）</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendNotes" ${c.sendNotes?'checked':''}>外部AIへタスク・予定のメモも送る</label>
+        <div style="height:1px;background:var(--line);margin:14px 0 4px"></div>
+        <div class="hint" style="font-weight:700;margin-bottom:2px">AI Workspace</div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="aiActions" ${c.actionsEnabled!==false?'checked':''}>AIによる操作候補（予定・タスクの追加/更新の提案。実行は必ず確認後）</label>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="aiConfirmFile" ${c.confirmFileSend!==false?'checked':''}>添付ファイルを送る前に内容を確認する</label>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSaveHistory" ${c.saveHistory!==false?'checked':''}>会話履歴をこの端末に保存する（ファイルの中身は保存しません）</label>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="aiAutoSpeak" ${c.autoSpeak?'checked':''}>AIの回答を自動で読み上げる</label>
+        <div style="margin-top:12px"><button class="btn sm danger" type="button" id="aiClearHist">会話履歴をすべて削除</button></div>
         <div id="aiTestResult" class="hint" style="margin-top:12px;line-height:1.8" aria-live="polite"></div>
       </div>
       <div class="mFoot"><button class="btn" type="button" id="aiTest">接続テスト</button><span class="grow"></span><button class="btn" type="button" data-close>キャンセル</button><button class="btn primary" type="button" id="aiSave">保存</button></div>`,
       {onMount:box=>{
         const $b=s=>box.querySelector(s);
         const en=$b('#aiEnabled'),ep=$b('#aiEndpoint'),key=$b('#aiAccessKey'),local=$b('#aiPreferLocal'),notes=$b('#aiSendNotes'),out=$b('#aiTestResult'),testBtn=$b('#aiTest');
+        const sched=$b('#aiSendSchedule'),acts=$b('#aiActions'),cfm=$b('#aiConfirmFile'),hist=$b('#aiSaveHistory'),spk=$b('#aiAutoSpeak');
+        $b('#aiClearHist').onclick=async()=>{
+          if(!window.KoujiAIStore)return;
+          if(await confirmBox('AI Workspaceの会話履歴をすべて削除します。予定・タスクのデータは変わりません。',{ok:'削除する'})){await KoujiAIStore.clear();window.KoujiAIWorkspace&&KoujiAIWorkspace.reloadHistory&&KoujiAIWorkspace.reloadHistory();toast('会話履歴を削除しました')}
+        };
         en.value=String(!!c.enabled);
         key.value=c.accessKey||'';
         $b('#aiKeyShow').onclick=e=>{const v=key.type==='password';key.type=v?'text':'password';e.currentTarget.textContent=v?'隠す':'表示'};
         /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
-        const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked}};
+        const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked,
+          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked}};
         $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
         testBtn.onclick=async()=>{
           const cfg=readForm();
@@ -340,20 +362,28 @@
     `;document.head.appendChild(st);
   }
 
+  /* AI Workspace（assistant-workspace.js）が読み込まれていればそちらを開く。無い/失敗時は従来の小型チャットへ退避。 */
+  function openEntry(){
+    try{if(window.KoujiAIWorkspace&&typeof KoujiAIWorkspace.open==='function'){KoujiAIWorkspace.open();return}}catch(e){console.error(e)}
+    openAssistant();
+  }
+
   function installUi(){
     injectStyle();
     const omni=document.getElementById('omniBtn');
     if(omni&&!document.getElementById('aiTopBtn')){
-      const b=document.createElement('button');b.id='aiTopBtn';b.type='button';b.className='btn aiTopBtn';b.innerHTML='<span class="aiDot"></span><span class="aiLbl">AI</span>';b.title='工事管理next AI';b.onclick=openAssistant;omni.insertAdjacentElement('afterend',b);
+      const b=document.createElement('button');b.id='aiTopBtn';b.type='button';b.className='btn aiTopBtn';b.innerHTML='<span class="aiDot"></span><span class="aiLbl">AI</span>';b.title='工事管理next AI';b.onclick=openEntry;omni.insertAdjacentElement('afterend',b);
     }
     const tab=document.getElementById('tabbar');
     if(tab&&!tab.querySelector('[data-act=ai]')){
-      const b=document.createElement('button');b.type='button';b.dataset.act='ai';b.innerHTML='<span style="font-size:15px;font-weight:900;line-height:21px">AI</span>AI';b.onclick=openAssistant;
+      const b=document.createElement('button');b.type='button';b.dataset.act='ai';b.innerHTML='<span style="font-size:15px;font-weight:900;line-height:21px">AI</span>AI';b.onclick=openEntry;
       const tools=tab.querySelector('[data-act=menu]');tab.insertBefore(b,tools||null);
     }
-    document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='k'){e.preventDefault();openAssistant()}});
+    document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='k'){e.preventDefault();openEntry()}});
     migrateAiCfg();
-    window.KoujiAI={open:openAssistant,settings:openAiSettings,askLocal:localAnswer,test:()=>testConnection(aiCfg(),x=>console.log(x.state,x.label,x.detail||''))};
+    window.KoujiAI={open:openEntry,openLegacy:openAssistant,settings:openAiSettings,askLocal:localAnswer,test:()=>testConnection(aiCfg(),x=>console.log(x.state,x.label,x.detail||'')),
+      /* AI Workspace が使う内部部品（通信・認証・設定・ローカル集計は従来の実装をそのまま共有する） */
+      _i:{aiCfg,saveAiCfg,postAi,normEndpoint,cleanKey,AiError,localAnswer,rangeOfQuery,modelLabel,migrateAiCfg,AI_DEFAULT}};
   }
 
   if(document.readyState==='complete')installUi();else window.addEventListener('load',installUi,{once:true});
