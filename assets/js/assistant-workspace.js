@@ -57,6 +57,7 @@
     const hasDate=/(今日|明日|明後日|来週|[月火水木金土日]曜|\d{1,2}\/\d{1,2}|\d{1,2}月\d{1,2}日)/.test(q);
     return (hasTime||hasDate)&&!QUESTION.test(q)&&/[でにへ]|から/.test(q)&&q.length<80;
   }
+  const remoteOk=()=>{const c=cfg();return !!(c.enabled&&c.endpoint&&c.accessKey&&!c.localOnly)};
   const localOnly=q=>{try{return AI().localAnswer(q)}catch(e){return null}};
 
   /* AIへ送る登録データ。毎回全部は送らず、質問に関係する期間・状態だけに絞る。 */
@@ -437,6 +438,7 @@
       <div class="aiTools">${badge}${sent}<span class="grow"></span>
         ${m.error&&m.retry?'<button type="button" class="btn sm" data-retry>再試行</button>':''}
         ${m.error&&m.fixCfg?'<button type="button" class="btn sm" data-cfg>AI設定を開く</button>':''}
+        ${m.mode==='local'&&!m.error&&remoteOk()?'<button type="button" class="btn sm" data-askai title="端末内の集計ではなく、外部AIに同じ質問を送ります">AIに聞き直す</button>':''}
         ${m.error?'':`<button type="button" class="btn sm ghost" data-speak>${ic('spk')}読み上げ</button><button type="button" class="btn sm ghost" data-copy>${icon('copy','i','width:15px;height:15px')}コピー</button>`}</div>`;
     const st=row.querySelector('.aiStations');
     [...new Set(m.stations||[])].slice(0,6).forEach(s=>{
@@ -463,6 +465,14 @@
     });
     const rt=row.querySelector('[data-retry]');rt&&(rt.onclick=()=>{S.conv.messages=S.conv.messages.filter(x=>x.id!==m.id);row.remove();m.retry()});
     const cf=row.querySelector('[data-cfg]');cf&&(cf.onclick=()=>window.KoujiAI.settings());
+    const ra=row.querySelector('[data-askai]');
+    ra&&(ra.onclick=()=>{
+      if(S.busy)return;
+      const i=S.conv.messages.findIndex(x=>x.id===m.id);let q='';
+      for(let k=i-1;k>=0;k--){if(S.conv.messages[k].role==='user'){q=S.conv.messages[k].text;break}}
+      if(!q)return;
+      S.forceRemote=true;$q('#aiInput').value=q;grow();send();
+    });
     return row;
   }
   function addBot(m){
@@ -511,7 +521,8 @@
   function errText(e){
     if(e&&e.code==='BAD_REQUEST'&&/query is required/.test(e.detail||''))return 'Vercel 側の API が古い版です（AI Workspace 未対応）。最新の api/ai.js をデプロイしてください。';
     const base=ERR[e&&e.code]||(e&&e.message)||'AIへの問い合わせに失敗しました。';
-    return base+(e&&e.fallbackTried===true?'\n（設定に従い OpenAI への切り替えも試みましたが、利用できませんでした）':'');
+    const det=(e&&e.detail&&/^(GEMINI_ERROR|GEMINI_UNREACHABLE|MODEL_UNAVAILABLE|OPENAI_ERROR|OPENAI_UNREACHABLE|EMPTY_RESPONSE|BLOCKED|TRUNCATED|GEMINI_QUOTA)$/.test(e.code))?`\n（詳細：${String(e.detail).replace(/(AIza|sk-)[^\s,;)]*/g,'[key]').replace(/key=\S*/gi,'').slice(0,160)}）`:'';
+    return base+det+(e&&e.fallbackTried===true?'\n（設定に従い OpenAI への切り替えも試みましたが、利用できませんでした）':'');
   }
   const needsCfg=e=>/^ACCESS_|^NO_ENDPOINT|^NETWORK$|^GEMINI_KEY|^OPENAI_KEY|^GEMINI_QUOTA$|^OPENAI_QUOTA$|^PROVIDER_INVALID$/.test(e&&e.code||'');
 
@@ -529,7 +540,8 @@
     Voice().tts.stop();
 
     /* 1) 添付なし: 端末内で答えられるものは端末内で */
-    if(!withFiles&&c.preferLocal!==false&&!looksLikeAction(text)){
+    const force=S.forceRemote&&remoteReady;S.forceRemote=false;
+    if(!withFiles&&!force&&c.preferLocal!==false&&!looksLikeAction(text)){
       const a=localOnly(text);
       if(a){
         userSay(text,[]);inp.value='';grow();scheduleCtx(true);

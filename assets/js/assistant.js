@@ -57,15 +57,37 @@
   function priText(p){return p==='high'?'高':p==='mid'?'やや高':'通常'}
   function normText(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ')}
 
+  /* 質問文から対象期間を決める。「今月の明日以降」「今月の残り」「来週の水曜以降」のような
+     「期間（今月/来週…）」＋「下限（明日以降/残り/これから…）」の組み合わせも解釈する。 */
   function rangeOfQuery(q){
-    const t=todayISO(),d=parseISO(t);
+    const t=todayISO(),d=parseISO(t),tom=addDays(t,1);
+    const mon=(y,m)=>{const x=new Date(y,m,1),z=new Date(y,m+1,0);return {from:iso(x),to:iso(z),label:`${x.getMonth()+1}月`}};
+    /* 1) 下限（いつ以降か） */
+    let lb=null,lbLabel='';
+    if(/(明後日|あさって)\s*(以降|以後|から|より後)/.test(q)){lb=addDays(t,2);lbLabel='明後日以降'}
+    else if(/(明日|あした)\s*(以降|以後|から|より後)/.test(q)){lb=tom;lbLabel='明日以降'}
+    else if(/(今日|本日|きょう)\s*(以降|以後|から)|これから|今後|残り|以降|以後/.test(q)){lb=t;lbLabel=/残り/.test(q)?'残り':'今日以降'}
+    /* 2) 期間 */
+    let base=null;
+    const nm=q.match(/(\d{1,2})\s*月(?!曜)/);
+    if(/再来月/.test(q))base=Object.assign(mon(d.getFullYear(),d.getMonth()+2),{});
+    else if(/来月/.test(q))base=mon(d.getFullYear(),d.getMonth()+1);
+    else if(/今月|当月/.test(q))base=Object.assign(mon(d.getFullYear(),d.getMonth()),{label:'今月'});
+    else if(nm&&+nm[1]>=1&&+nm[1]<=12)base=mon(d.getFullYear(),+nm[1]-1);
+    else if(/来週/.test(q)){const st=addDays(startOfWeek(t,1),7);base={from:st,to:addDays(st,6),label:'来週'}}
+    else if(/今週/.test(q)){const st=startOfWeek(t,1);base={from:st,to:addDays(st,6),label:'今週'}}
+    if(base&&/(来週|来月|再来月|\d{1,2}\s*月(?!曜)|今週|今月)\s*(以降|以後)/.test(q)){   /* 「来週以降」「来月以降」は期間の終わりを区切らない */
+      const from=lb&&lb>base.from?lb:base.from;
+      return {from,to:addDays(base.from,365),label:`${base.label}以降`,after:from};
+    }
+    if(base){
+      if(lb&&lb>base.from)return {from:lb>base.to?base.to:lb,to:base.to,label:`${base.label}の${lbLabel==='残り'?'残り':lbLabel}`,after:lb};
+      return base;
+    }
+    if(lb)return {from:lb,to:addDays(lb,365),label:lbLabel,after:lb};
     if(/明後日|あさって/.test(q)){const x=addDays(t,2);return {from:x,to:x,label:'明後日'}}
-    if(/明日|あした/.test(q)){const x=addDays(t,1);return {from:x,to:x,label:'明日'}}
+    if(/明日|あした/.test(q)){return {from:tom,to:tom,label:'明日'}}
     if(/今日|きょう|本日/.test(q))return {from:t,to:t,label:'今日'};
-    if(/来週/.test(q)){const st=addDays(startOfWeek(t,1),7);return {from:st,to:addDays(st,6),label:'来週'}}
-    if(/今週/.test(q)){const st=startOfWeek(t,1);return {from:st,to:addDays(st,6),label:'今週'}}
-    if(/来月/.test(q)){const x=new Date(d.getFullYear(),d.getMonth()+1,1),y=new Date(d.getFullYear(),d.getMonth()+2,0);return {from:iso(x),to:iso(y),label:`${x.getMonth()+1}月`}}
-    if(/今月/.test(q)){const x=new Date(d.getFullYear(),d.getMonth(),1),y=new Date(d.getFullYear(),d.getMonth()+1,0);return {from:iso(x),to:iso(y),label:'今月'}}
     return null;
   }
   function eventText(e){return `${e.title||''} ${e.station||''} ${e.location||''} ${e.note||''}`}
@@ -89,7 +111,7 @@
     return {kind,text,meta};
   }
 
-  function localAnswer(query){
+  function localAnswerCore(query){
     const q=String(query||'').trim(),nq=normText(q),range=rangeOfQuery(q),station=stationFromQuery(q);
     const openTasks=state.tasks.filter(t=>!t.done);
 
@@ -167,6 +189,36 @@
     }
 
     return null;
+  }
+
+  /* ---- 端末内で答えてよい質問かの判定 ----
+     端末内の集計は「決まった言い回し」だけを正確に扱う。文中に“解釈できない語”が1つでも残る場合
+     （例: 平日・午前・金曜・〜のうち・じゃあ来週は？）は推測で答えず、外部AI（会話履歴つき）に任せる。 */
+  const KNOWN_WORDS=['明後日','あさって','明日','あした','今日','きょう','本日','来週','今週','再来月','来月','今月','当月','月末','以降','以後','これから','今後','残り','から','まで',
+    '予定','スケジュール','タスク','やること','現場調査','現調','調査','件数','何件','件','いくつ','何','なに','あります','ありますか','ある','ない','教えて','ください','見せて','まとめて','まとめ','一覧','すべて','全部',
+    '未完了','完了','優先度','優先','重要','高い','期限','切れ','超過','過ぎ','遅延','忙しい','多い','一番','何回','何度','回数','行く','駅','軒','です','ですか','でしょうか','か','は','の','が','を','に','で','も','と','や','て','って','日','回'];
+  function fullyUnderstood(q){
+    let r=String(q||'');
+    const sts=(typeof STATIONS!=='undefined'?STATIONS:[]).map(x=>x.name).sort((a,b)=>b.length-a.length);
+    sts.forEach(n=>{r=r.split(n).join(' ')});
+    r=r.replace(/\d{1,2}\s*月(?!曜)/g,' ');
+    KNOWN_WORDS.slice().sort((a,b)=>b.length-a.length).forEach(w=>{r=r.split(w).join(' ')});
+    r=r.replace(/[\s　?？!！。、,，.．・「」『』()（）]/g,'');
+    return r.length===0;
+  }
+  function localAnswer(query){
+    const q=String(query||'').trim();
+    const a=localAnswerCore(q);
+    if(!a)return null;
+    if(!fullyUnderstood(q))return null;   /* 解釈できない語が残る → 外部AIへ */
+    const r=rangeOfQuery(q);
+    if(r){   /* どの期間として読んだかを必ず見せる（読み違いに気付けるように） */
+      const f=fmtMDW(r.from),t=fmtMDW(r.to);
+      const span=r.from===r.to?f:(parseISO(r.to)-parseISO(r.from)>250*864e5?`${f} 以降`:`${f}〜${t}`);
+      a.text+=`\n\n（対象期間：${span}）`;
+      a.meta=Object.assign({},a.meta,{range:{from:r.from,to:r.to}});
+    }
+    return a;
   }
 
   function compactContext(){
@@ -434,7 +486,7 @@
     migrateAiCfg();
     window.KoujiAI={open:openEntry,openLegacy:openAssistant,settings:openAiSettings,askLocal:localAnswer,test:()=>testConnection(aiCfg(),x=>console.log(x.state,x.label,x.detail||'')),
       /* AI Workspace が使う内部部品（通信・認証・設定・ローカル集計は従来の実装をそのまま共有する） */
-      _i:{aiCfg,saveAiCfg,postAi,providerOf,providerLabel,sendInfoHtml,normEndpoint,cleanKey,AiError,localAnswer,rangeOfQuery,modelLabel,migrateAiCfg,AI_DEFAULT}};
+      _i:{aiCfg,saveAiCfg,postAi,providerOf,providerLabel,sendInfoHtml,normEndpoint,cleanKey,AiError,localAnswer,rangeOfQuery,fullyUnderstood,modelLabel,migrateAiCfg,AI_DEFAULT}};
   }
 
   if(document.readyState==='complete')installUi();else window.addEventListener('load',installUi,{once:true});
