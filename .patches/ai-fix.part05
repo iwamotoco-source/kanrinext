@@ -1,0 +1,76 @@
++    }
++    if(!health||health.service!=='kouji-next-ai'){step('AIプロキシ確認','ng','このURLは工事管理nextのAI APIではありません');return {ok:false,summary:'AIプロキシURLが正しくありません'}}
++    if(health.accessTokenConfigured===false){step('APP_ACCESS_TOKEN認証','ng','Vercel側で未設定（設定後は再デプロイが必要）');return {ok:false,summary:'Vercel認証失敗（APP_ACCESS_TOKEN未設定）'}}
++
++    /* 3-6. 認証 → OpenAIキー → モデル → Responses API */
++    try{
++      const d=await postAi(cfg,{mode:'test'});
++      step('APP_ACCESS_TOKEN認証','ok');step('OpenAI APIキー','ok');
++      step('モデル利用可能','ok',d.fallback?`${d.requestedModel} が使えないため ${d.model} を使用`:d.model);
++      step('Responses API応答','ok');
++      return {ok:true,summary:`AI接続成功 — ${modelLabel(d.model)}`};
++    }catch(e){
++      const c=e.code||'';
++      if(/^ACCESS_|HTTP_401/.test(c)){step('APP_ACCESS_TOKEN認証','ng',e.message);return {ok:false,summary:'Vercel認証失敗'}}
++      step('APP_ACCESS_TOKEN認証','ok');
++      if(c==='OPENAI_KEY_MISSING'||c==='OPENAI_KEY_INVALID'||c==='OPENAI_QUOTA'){step('OpenAI APIキー','ng',e.message);return {ok:false,summary:'OpenAI APIキーエラー'}}
++      step('OpenAI APIキー','ok');
++      if(c==='MODEL_UNAVAILABLE'){step('モデル利用可能','ng',e.message);return {ok:false,summary:'モデルが利用できません'}}
++      step('Responses API応答','ng',e.message);return {ok:false,summary:'OpenAI APIエラー'};
++    }
++  }
++
+   function escapeLines(s){return esc(s).replace(/\n/g,'<br>')}
+   function renderAssistantMessage(list,who,text,meta={}){
+     const row=document.createElement('div');row.className='aiMsg '+who;
+@@ -180,21 +270,44 @@
+   }
+ 
+   function openAiSettings(){
++    migrateAiCfg();
+     const c=aiCfg();
+     openModal(`<div class="mHead"><h2>AIアシスタント設定</h2><button class="btn ghost icon" type="button" data-close aria-label="閉じる">${icon('x')}</button></div>
+       <div class="mBody">
+         <div class="field"><label>外部AIを使用する</label><select id="aiEnabled"><option value="false">使用しない（ローカル集計のみ）</option><option value="true">使用する</option></select></div>
+-        <div class="field" style="margin-top:12px"><label>AIプロキシURL</label><input id="aiEndpoint" value="${esc(c.endpoint||'')}" placeholder="https://...workers.dev/"><span class="hint">APIキーをGitHub Pagesへ書かないため、Cloudflare Worker等の中継先を指定します。</span></div>
++        <div class="field" style="margin-top:12px"><label>AIプロキシURL</label><input id="aiEndpoint" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(c.endpoint||'')}" placeholder="${AI_ENDPOINT_DEFAULT}"></div>
++        <div class="field" style="margin-top:12px"><label>AIアクセスキー</label>
++          <div style="display:flex;gap:6px"><input id="aiAccessKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1" placeholder="Vercelの APP_ACCESS_TOKEN と同じ文字列"><button class="btn" type="button" id="aiKeyShow">表示</button></div>
++          <span class="hint">OpenAIの sk-... APIキーではありません。OpenAIキーはVercel側だけに置き、この端末には保存しません。ここにはVercelの APP_ACCESS_TOKEN と同じ文字列を入れます（この端末内にだけ保存）。</span></div>
+         <label class="check" style="margin-top:14px"><input type="checkbox" id="aiPreferLocal" ${c.preferLocal!==false?'checked':''}>答えられる質問は端末内だけで集計する</label>
+         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendNotes" ${c.sendNotes?'checked':''}>外部AIへタスク・予定のメモも送る</label>
+-        <p class="hint" style="margin-top:12px">既定ではタイトル・日付・時刻・駅・優先度・カテゴリだけを送信します。APIキーはこのアプリには保存しません。</p>
++        <div id="aiTestResult" class="hint" style="margin-top:12px;line-height:1.8" aria-live="polite"></div>
+       </div>
+       <div class="mFoot"><button class="btn" type="button" id="aiTest">接続テスト</button><span class="grow"></span><button class="btn" type="button" data-close>キャンセル</button><button class="btn primary" type="button" id="aiSave">保存</button></div>`,
+       {onMount:box=>{
+-        const en=box.querySelector('#aiEnabled'),ep=box.querySelector('#aiEndpoint'),local=box.querySelector('#aiPreferLocal'),notes=box.querySelector('#aiSendNotes');
++        const $b=s=>box.querySelector(s);
++        const en=$b('#aiEnabled'),ep=$b('#aiEndpoint'),key=$b('#aiAccessKey'),local=$b('#aiPreferLocal'),notes=$b('#aiSendNotes'),out=$b('#aiTestResult'),testBtn=$b('#aiTest');
+         en.value=String(!!c.enabled);
+-        box.querySelector('#aiSave').onclick=()=>{saveAiCfg({enabled:en.value==='true',endpoint:ep.value.trim(),preferLocal:local.checked,sendNotes:notes.checked});closeModal();toast('AI設定を保存しました')};
+-        box.querySelector('#aiTest').onclick=async()=>{const old=aiCfg();saveAiCfg({enabled:true,endpoint:ep.value.trim(),preferLocal:false,sendNotes:notes.checked});try{await remoteAnswer('接続テストです。「接続できました」と短く答えてください。');toast('AIへ接続できました')}catch(e){toast('接続できませんでした：'+e.message)}finally{saveAiCfg(old)}};
++        key.value=c.accessKey||'';
++        $b('#aiKeyShow').onclick=e=>{const v=key.type==='password';key.type=v?'text':'password';e.currentTarget.textContent=v?'隠す':'表示'};
++        /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
++        const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked}};
++        $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
++        testBtn.onclick=async()=>{
++          const cfg=readForm();
++          ep.value=cfg.endpoint;key.value=cfg.accessKey;
++          testBtn.disabled=true;out.innerHTML='';
++          const rows=[];
++          const render=()=>{out.innerHTML=rows.map(x=>`<div>${x.state==='ok'?'✅':'❌'} ${esc(x.label)}${x.detail?`<span style="opacity:.75"> — ${esc(x.detail)}</span>`:''}</div>`).join('')};
++          let res;
++          try{res=await testConnection(cfg,x=>{rows.push(x);render()})}
++          catch(e){res={ok:false,summary:e.message||String(e)}}
++          finally{testBtn.disabled=false}
++          /* 成功した入力値はそのまま保存（失敗時は保存済み設定に一切触れない） */
++          if(res.ok){saveAiCfg(Object.assign(cfg,{enabled:true}));en.value='true';res.summary+='（設定を保存しました）'}
++          out.insertAdjacentHTML('afterbegin',`<div style="font-weight:800;margin-bottom:4px;color:${res.ok?'var(--accent)':'var(--danger)'}">${esc(res.summary)}</div>`);
++          toast(res.ok?res.summary:'接続できませんでした：'+res.summary);
++        };
+       }});
+   }
+ 
+@@ -239,7 +352,8 @@
