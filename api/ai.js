@@ -158,7 +158,7 @@ const WORKSPACE_INSTRUCTIONS=`あなたは「工事管理next AI Workspace」の
 【操作候補（actions）】
 ・予定・タスクの追加や変更を頼まれた場合、または資料から予定/タスク化がユーザーの依頼に沿う場合に、actions へ提案を入れる。実行はユーザーが承認した後なので、answer には「これから提案する内容の要約」を書き、「登録しました」とは書かない。
 ・依頼されていないのに actions を出さない。質問・要約・解析だけなら actions は空配列。
-・type は event.add / event.update / task.add / task.update。update は登録データJSONにある id を targetId に入れ、変更するフィールドだけ値を入れ、変えないものは null にする。
+・type は event.add / event.update / event.delete / task.add / task.update / task.delete。update と delete は登録データJSONにある id を targetId に入れ、変更するフィールドだけ値を入れ、変えないものは null にする。
 ・日付は YYYY-MM-DD、時刻は HH:MM（24時間）。時刻が不明なら start/end は null、予定は allDay=true。複数日にわたるなら endDate を入れる。
 ・日付・時刻・駅・年などを資料から断定できず推測で補ったら guess=true とし、reason に根拠と推測内容を短く書く。資料に明記されていれば guess=false。
 ・年が資料にない場合は、today に最も近い将来の日付として解決し guess=true にする。
@@ -168,6 +168,17 @@ const WORKSPACE_INSTRUCTIONS=`あなたは「工事管理next AI Workspace」の
 ・answer の先頭に「何を読み取り、何件を追加／更新／除外したか」を1〜2行で書く。
 ・station は小田急の駅名（「駅」を付けない）が明確な場合のみ。location に現場名・住所。note に資料上の補足（工程名の元の表記・シート名とセル位置・ページ）を書く。
 ・登録データに同じ日付・同名の予定/タスクが既にあるものは提案せず、answer で触れる。
+【言い回しの解釈（定型句に頼らない）】
+・ユーザーの言い方は自由。決まった言い回しや単語に依存せず、文脈（会話履歴・登録データ）から意図を読み取る。「終わった」「済んだ」「片付いた」「やっといた」は完了、「なくなった」「中止」「キャンセル」「やめた」「取りやめ」は削除、「ずれた」「延びた」「後ろ倒し」「前倒し」「雨で」「◯日に変わった」は日程変更、といった同義の言い方を広く扱う。
+・対象の特定は、登録データの title・日付・駅・場所・メモと、直前の会話（「それ」「さっきの」「その現場」）から行う。
+【完了・削除・一括変更】
+・タスクの完了は task.update で done=true（他は null）。「今日のは全部終わった」のように複数なら、該当する未完了タスクをすべて並べる。
+・削除（event.delete / task.delete）は、ユーザーが「なくなった・中止・消して・キャンセル」など明確に取りやめを伝えたときだけ。targetId は必須。完了で足りる場面（終わっただけ）では削除せず完了にする。繰り返し予定（recurring:true）は削除・変更を提案せず、answer で手動操作を案内する。
+・日程の一括変更（「雨で来週の外工事を2日後ろへ」など）は、該当する予定それぞれに event.update を出す。新しい日付は today と元の日付から計算し、曜日も確認する。
+・1回の依頼で、予定とタスクの組み合わせ（例：現場調査の予定＋前日の資料準備タスク）を同時に提案してよい。タスクの期日は予定の日付から逆算し、reason に理由を書く。
+【曖昧なとき】
+・対象が複数に絞れない、日付が決められない、どの現場か不明などのときは、推測で操作せず actions を空にして、answer で候補を番号つきで挙げて短く聞き返す。ユーザーが「1番」「それ」と答えたら会話履歴から続きを実行する。
+・削除・一括変更は、対象に迷う場合ほど確認を優先する。answer には対象の件数と一覧を必ず書く。
 ・priority は high / mid / normal。資料に根拠がなければ normal。
 【PDF・原本ファイル】
 ・PDFが原本のまま添付されている場合は、ページ全体（図・表・文字）を読み、根拠にしたページ番号（p.）を回答や note に添える。
@@ -179,7 +190,7 @@ const WORKSPACE_NO_ACTIONS=`
 
 const _ns={type:['string','null']};
 const ACTION_PROPS={
-  type:{type:'string',enum:['event.add','event.update','task.add','task.update']},
+  type:{type:'string',enum:['event.add','event.update','event.delete','task.add','task.update','task.delete']},
   title:{type:'string'},targetId:_ns,date:_ns,endDate:_ns,start:_ns,end:_ns,
   allDay:{type:['boolean','null']},station:_ns,location:_ns,note:_ns,
   priority:{anyOf:[{type:'string',enum:['high','mid','normal']},{type:'null'}]},
@@ -274,9 +285,10 @@ function parseWorkspace(text,withActions){
   let p=parseJsonLoose(raw)||{answer:raw};
   const actions=[];
   if(withActions&&Array.isArray(p.actions))for(const a of p.actions.slice(0,LIMITS.actions)){
-    if(!a||!['event.add','event.update','task.add','task.update'].includes(a.type))continue;
+    if(!a||!['event.add','event.update','event.delete','task.add','task.update','task.delete'].includes(a.type))continue;
     const title=cleanField(a.title,200);
-    if(!title&&!a.type.endsWith('update'))continue;
+    if(!title&&a.type.endsWith('.add'))continue;
+    if(a.type.endsWith('.delete')&&!cleanField(a.targetId,80))continue;
     actions.push({
       type:a.type,title:title||'',targetId:cleanField(a.targetId,80),date:cleanField(a.date,10),endDate:cleanField(a.endDate,10),
       start:cleanField(a.start,5),end:cleanField(a.end,5),allDay:typeof a.allDay==='boolean'?a.allDay:null,

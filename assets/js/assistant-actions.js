@@ -9,29 +9,41 @@
    ========================================================= */
 'use strict';
 (function(){
-  const LABEL={'event.add':'予定を追加','event.update':'予定を更新','task.add':'タスクを追加','task.update':'タスクを更新'};
+  const LABEL={'event.add':'予定を追加','event.update':'予定を更新','task.add':'タスクを追加','task.update':'タスクを更新','event.delete':'予定を削除','task.delete':'タスクを削除'};
   const isoOk=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&iso(parseISO(s))===s;
   const timeOk=s=>typeof s==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
   const s1=(v,n)=>v===null||v===undefined?'':String(v).trim().slice(0,n);
-  const isEvent=t=>t.startsWith('event.'),isUpdate=t=>t.endsWith('.update');
+  const isEvent=t=>t.startsWith('event.'),isUpdate=t=>t.endsWith('.update'),isDelete=t=>t.endsWith('.delete'),needsTarget=t=>isUpdate(t)||isDelete(t);
   let seq=0;
 
   function workCategory(){return (state.categories.find(c=>c.id==='work')||state.categories[0]).id}
   function dupEvent(f){return state.events.some(e=>e.date===f.date&&norm(e.title)===norm(f.title))}
   function dupTask(f){return state.tasks.some(t=>!t.done&&norm(t.title)===norm(f.title)&&(taskDate(t)||'')===(f.date||''))}
 
+  /* 同じ日の時間が重なる既存予定（重複登録とは別に「ダブルブッキング」を知らせる） */
+  function overlapWarn(date,start,end,selfId){
+    try{
+      if(!date||!start)return '';
+      const a=toMin(start),b=end?toMin(end):a+60;
+      const hit=occurrencesBetween(date,date,{}).filter(o=>String(o.id)!==String(selfId||'')&&!o.allDay&&o.start&&o.date===date&&toMin(o.start)<b&&(o.end?toMin(o.end):toMin(o.start)+60)>a);
+      if(!hit.length)return '';
+      return '同じ時間帯に既存の予定があります：'+hit.slice(0,2).map(o=>`「${o.title}」${o.start}${o.end?'–'+o.end:''}`).join('、')+(hit.length>2?` ほか${hit.length-2}件`:'');
+    }catch(e){return ''}
+  }
+
   /* 生の候補 → 検証済みの提案。invalid が空文字でなければ実行不可。 */
   function validate(p){
     const f=p.fields,w=[];p.warnings=w;p.invalid='';p.dup=false;
-    const upd=isUpdate(p.type),ev=isEvent(p.type);
-    if(upd){
+    const upd=isUpdate(p.type),del=isDelete(p.type),ev=isEvent(p.type);
+    if(upd||del){
       const list=ev?state.events:state.tasks;
       const target=list.find(x=>String(x.id)===String(p.targetId));
       if(!target){p.invalid=`更新対象の${ev?'予定':'タスク'}が見つかりません（削除された可能性）`;return p}
-      if(ev&&target.recur){p.invalid='繰り返し予定の変更は未対応です。カレンダーから手動で編集してください';return p}
+      if(ev&&target.recur){p.invalid=`繰り返し予定の${del?'削除':'変更'}は未対応です。カレンダーから手動で操作してください`;return p}
       p.targetTitle=target.title;
       if(!p.before)p.before=ev?{title:target.title,date:target.date,endDate:target.endDate,start:target.start||'',end:target.end||'',allDay:evAllDay(target),station:target.station||'',location:target.location||'',note:target.note||''}
         :{title:target.title,date:taskDate(target)||'',time:target.time||'',priority:target.priority||'normal',station:target.stationName||'',note:target.note||'',done:!!target.done};
+      if(del){p.dup=false;if(!f.title)f.title=target.title;return p}
     }else if(!f.title){p.invalid='タイトルがありません';return p}
 
     if(f.date!==''&&!isoOk(f.date)){p.invalid=`日付「${f.date}」が不正です`;return p}
@@ -52,9 +64,17 @@
         if(!f.end||(f.endDate===f.date&&toMin(f.end)<=toMin(f.start)))f.end=fromMin(Math.min(toMin(f.start)+dur,24*60-1));
       }
       p.dup=dupEvent(f);
+      if(!p.dup){const w1=overlapWarn(f.date,f.start,f.end,'');if(w1)w.push(w1)}
     }
     if(!ev&&!upd){if(!f.date)f.time='';p.dup=dupTask(f)}
     if(f.date&&Math.abs(diffDays(todayISO(),f.date))>366*2)w.push('今日から2年以上離れた日付です。年を確認してください');
+    if(upd&&ev){
+      const tg=state.events.find(x=>String(x.id)===String(p.targetId));
+      if(tg&&(f.date||f.start||f.end)){
+        const d=f.date||tg.date,st=f.start||tg.start||'',en=f.end||(f.start?'':(tg.end||''));
+        const w1=overlapWarn(d,st,en,tg.id);if(w1)w.push(w1);
+      }
+    }
     if(upd){
       const changed=Object.keys(f).filter(k=>f[k]!==''&&f[k]!==null&&f[k]!==undefined&&String(f[k])!==String(p.before[k]??''));
       if(!changed.length)p.invalid='変更内容がありません';
@@ -71,6 +91,7 @@
         allDay:a.allDay===true?true:(a.allDay===false?false:null),station:s1(a.station,40),location:s1(a.location,200),note:s1(a.note,1000),
         priority:s1(a.priority,6),done:typeof a.done==='boolean'?a.done:null,time:''};
       if(!ev){f.time=f.start;f.start='';f.end='';f.endDate='';f.location=''}
+      if(isDelete(a.type)){f.date='';f.endDate='';f.start='';f.end='';f.time=''}
       const p={pid:'p'+Date.now().toString(36)+(++seq),type:a.type,targetId:s1(a.targetId,80),fields:f,guess:!!a.guess,reason:s1(a.reason,300),
         status:'pending',checked:true,warnings:[],invalid:'',dup:false,before:null};
       validate(p);
@@ -108,6 +129,15 @@
       if(f.station)e.station=f.station;if(f.location)e.location=f.location;if(f.note)e.note=f.note;
       return e.id;
     }
+    if(p.type==='event.delete'){
+      const e=state.events.find(x=>String(x.id)===String(p.targetId));if(!e)throw new Error('対象が見つかりません');
+      if(e.recur)throw new Error('繰り返し予定は削除できません');
+      state.events=state.events.filter(x=>x!==e);return e.id;
+    }
+    if(p.type==='task.delete'){
+      const t=state.tasks.find(x=>String(x.id)===String(p.targetId));if(!t)throw new Error('対象が見つかりません');
+      state.tasks=state.tasks.filter(x=>x!==t);return t.id;
+    }
     if(p.type==='task.update'){
       const t=state.tasks.find(x=>String(x.id)===String(p.targetId));if(!t)throw new Error('対象が見つかりません');
       if(f.title)t.title=f.title;
@@ -140,12 +170,12 @@
   function summaryLabel(list){
     const sel=list.filter(p=>p.status==='pending'&&p.checked&&!p.invalid);
     const n=t=>sel.filter(p=>p.type===t).length;
-    const parts={ea:n('event.add'),ta:n('task.add'),eu:n('event.update'),tu:n('task.update')};
+    const parts={ea:n('event.add'),ta:n('task.add'),eu:n('event.update'),tu:n('task.update'),ed:n('event.delete'),td:n('task.delete')};
     const kinds=Object.values(parts).filter(Boolean).length;
     if(!sel.length)return '';
     if(kinds===1){
       if(parts.ea)return `${parts.ea}件を予定に追加`;if(parts.ta)return `${parts.ta}件をタスクに追加`;
-      if(parts.eu)return `予定${parts.eu}件を更新`;return `タスク${parts.tu}件を更新`;
+      if(parts.eu)return `予定${parts.eu}件を更新`;if(parts.ed)return `予定${parts.ed}件を削除`;if(parts.td)return `タスク${parts.td}件を削除`;return `タスク${parts.tu}件を更新`;
     }
     return `${sel.length}件を実行`;
   }
@@ -182,17 +212,18 @@
   }
 
   function cardHtml(p){
-    const f=p.fields,upd=isUpdate(p.type),ev=isEvent(p.type);
+    const f=p.fields,upd=isUpdate(p.type),del=isDelete(p.type),ev=isEvent(p.type);
     const done=p.status==='applied',gone=p.status==='dismissed';
     const st=f.station?stChip(f.station):'';
     const badges=[
-      `<span class="apType ${ev?'apEv':'apTk'}">${esc(LABEL[p.type])}</span>`,
+      `<span class="apType ${del?'apDel':ev?'apEv':'apTk'}">${esc(LABEL[p.type])}</span>`,
       p.guess?'<span class="apBadge guess" title="資料から断定できず、AIが推測した項目を含みます">推測</span>':'',
       p.dup?'<span class="apBadge dup" title="同じ日付・同名の予定/タスクが既にあります">重複の可能性</span>':'',
-      done?'<span class="apBadge ok">追加済み</span>':'',gone?'<span class="apBadge off">却下</span>':''
+      done?`<span class="apBadge ok">${del?'削除済み':'追加済み'}</span>`:'',gone?'<span class="apBadge off">却下</span>':''
     ].join('');
-    const title=upd?(f.title||p.targetTitle||''):f.title;
-    const body=upd?`<div class="apDiff">${diffLines(p).map(x=>`<div>${x}</div>`).join('')||'<div class="hint">変更なし</div>'}</div>`
+    const title=(upd||del)?(del?(p.targetTitle||f.title):(f.title||p.targetTitle||'')):f.title;
+    const b0=p.before||{};
+    const body=del?`<div class="apMeta">${esc(ev?(b0.date?dateText({date:b0.date,endDate:b0.endDate})+'　'+(b0.allDay||!b0.start?'終日':b0.start+(b0.end?'–'+b0.end:'')):''):(b0.date?'期日 '+dateText({date:b0.date}):'期日なし'))}${b0.location?' ／ '+esc(b0.location):''}</div><div class="apDelNote">登録から削除されます（実行後に「元に戻す」で復元できます）</div>`:upd?`<div class="apDiff">${diffLines(p).map(x=>`<div>${x}</div>`).join('')||'<div class="hint">変更なし</div>'}</div>`
       :`<div class="apMeta">${esc(lineOf(p))}${st?` ${st}`:''}${f.location?` <span class="apLoc">${icon('pin','i','width:13px;height:13px;vertical-align:-2px')}${esc(f.location)}</span>`:''}</div>`;
     const warn=p.warnings.map(x=>`<div class="apWarn">${esc(x)}</div>`).join('');
     const reason=p.guess&&p.reason?`<div class="apReason">推測の根拠：${esc(p.reason)}</div>`:'';
@@ -202,7 +233,7 @@
     return `<div class="apHead">
         <label class="apCheck"><input type="checkbox" data-ck ${p.checked&&canCheck?'checked':''} ${canCheck?'':'disabled'} aria-label="この候補を選択"></label>
         <div class="apMain"><div class="apTitle">${badges}<b>${esc(title)}</b></div>${body}${note}${reason}${warn}${bad}</div>
-        ${canCheck&&!upd?`<button class="btn sm ghost" type="button" data-edit>${p._edit?'閉じる':'編集'}</button>`:''}
+        ${canCheck&&!upd&&!del?`<button class="btn sm ghost" type="button" data-edit>${p._edit?'閉じる':'編集'}</button>`:''}
       </div>${p._edit?editHtml(p):''}`;
   }
   function editHtml(p){
@@ -256,6 +287,6 @@
     if(typeof ensureStationDatalist==='function')try{ensureStationDatalist()}catch(e){}
   }
 
-  window.KoujiAIActions={normalize,revalidate,validate,applyMany,applyOne,render,summaryLabel,
+  window.KoujiAIActions={isDelete,normalize,revalidate,validate,applyMany,applyOne,render,summaryLabel,
     _t:{isoOk,timeOk}};
 })();

@@ -51,8 +51,11 @@
   /* ---------- 質問の振り分け ---------- */
   const ACT_VERB=/(追加|登録|入れて|いれて|作って|作成|にして|にしといて|変更|更新|編集|変えて|移動|ずらして|延期|完了にして|消して|削除|リマインド|メモして|メモを|設定して|予約|取って)/;
   const QUESTION=/[?？]|(ですか|ますか|でしょうか|かな|教えて|知りたい|見せて|まとめて|一覧|何件|何軒|何回|いくつ|どこ|いつ|何が|あるか|ありますか|提案|考えて|整理|分析|チェック|調べて|見て|確認して|比較|相談|アドバイス)/;
+  /* 操作の言い回しは多様なので、語の網は広く取り、迷ったら外部AIの解釈に任せる（端末内は「完全に理解できた質問」だけ） */
+  const ACT_WIDE=/(終わ[っりる]|済ん|済み|片付|やっと[いきけ]|なくな|無くな|中止|キャンセル|取り消|取りやめ|取りやめ|やめ[たる]|ずれ|延び|延ば|後ろ倒|前倒|遅ら|遅れ|早め|繰り上|繰り下|入れ替|組んで|組み直|直して|なおして|全部|すべて|一括|まとめて(?:消|完了|削除)|雨で|変わった|変わりました|になった|になりました|にします|にする|にしたい|したい|しといて|おいて|お願い|頼む|頼みます|ください)/;
   function looksLikeAction(q){
     if(ACT_VERB.test(q))return true;
+    if(ACT_WIDE.test(q)&&!(/[?？]\s*$/.test(q)&&!/(して|ください|お願い|したい)/.test(q)))return true;
     const hasTime=/\d{1,2}\s*[:：時]\s*\d{0,2}/.test(q);
     const hasDate=/(今日|明日|明後日|来週|[月火水木金土日]曜|\d{1,2}\/\d{1,2}|\d{1,2}月\d{1,2}日)/.test(q);
     return (hasTime||hasDate)&&!QUESTION.test(q)&&/[でにへ]|から/.test(q)&&q.length<80;
@@ -387,6 +390,29 @@
   }
 
   /* ---------- 表示 ---------- */
+  /* 今日のひとこと（端末内の集計のみ。外部AIは使いません） */
+  function briefHtml(){
+    try{
+      const today=todayISO(),evs=occurrencesBetween(today,today,{});
+      const od=state.tasks.filter(t=>!t.done&&taskDate(t)&&taskDate(t)<today);
+      const dueToday=state.tasks.filter(t=>!t.done&&taskDate(t)===today);
+      const timed=evs.filter(o=>!o.allDay&&o.start);
+      let overlap=0;
+      for(let i=0;i<timed.length;i++)for(let j=i+1;j<timed.length;j++){
+        const a=timed[i],b=timed[j],ae=a.end?toMin(a.end):toMin(a.start)+60,be=b.end?toMin(b.end):toMin(b.start)+60;
+        if(toMin(a.start)<be&&toMin(b.start)<ae)overlap++;
+      }
+      const now=new Date(),nowMin=now.getHours()*60+now.getMinutes();
+      const next=timed.find(o=>toMin(o.start)>=nowMin);
+      const rows=[];
+      rows.push(`<li><b>今日の予定 ${evs.length}件</b>${next?`　次は ${esc(next.start)} ${esc(next.title)}`:evs.length?'　（時刻指定の予定は終了）':''}</li>`);
+      if(dueToday.length)rows.push(`<li>今日が期日のタスク <b>${dueToday.length}件</b></li>`);
+      if(od.length)rows.push(`<li class="warn">期限切れのタスク <b>${od.length}件</b></li>`);
+      if(overlap)rows.push(`<li class="warn">今日は時間が重なる予定が <b>${overlap}組</b> あります</li>`);
+      if(!evs.length&&!od.length&&!dueToday.length)return '';
+      return `<ul class="aiToday" aria-label="今日のひとこと">${rows.join('')}</ul>`;
+    }catch(e){return ''}
+  }
   function suggestHtml(){
     const ready=cfg().enabled&&cfg().endpoint&&cfg().accessKey;
     const L=(t,go)=>`<button type="button" class="aiSug" data-q="${esc(t)}" data-go="${go?1:0}">${esc(t)}</button>`;
@@ -394,6 +420,7 @@
       <div class="aiHero"><div class="aiStage" id="aiStage" style="--ratio:1"></div>
         <h3>${esc(greetText())}</h3>
         <p class="hint">予定・タスクの検索と集計は端末内で処理します。写真・図面・工程表（PDF/Excel）の解析や、自由な言い回しの依頼は外部AIに送ります（送信前に内容を確認できます）。</p></div>
+      ${briefHtml()}
       <div class="aiSugs">
         ${L('今日の予定は？',1)}${L('未完了のタスクは？',1)}${L('優先度が高いタスクは？',1)}${L('期限切れのタスクはある？',1)}${L('来週の予定をまとめて',1)}
         ${L('明日10時に厚木で現場調査',0)}
