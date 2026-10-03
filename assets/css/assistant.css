@@ -84,8 +84,8 @@ html.aiWsOpen body{overscroll-behavior:none}
 .aiChip .x{width:22px;height:22px;display:grid;place-items:center;color:var(--ink-3);border-radius:50%;flex:0 0 22px}
 .aiChip .x:hover{background:var(--surface-3);color:var(--ink)}
 .aiChip.ref{padding:0 9px;min-height:24px}
-.aiChip.ref.ev{border-color:var(--accent-line);color:var(--accent)}
-.aiChip.ref.tk{border-color:color-mix(in srgb,var(--ok) 50%,var(--line));color:var(--ok)}
+.aiChip.ref.refEv{border-color:var(--accent-line);color:var(--accent)}
+.aiChip.ref.refTk{border-color:color-mix(in srgb,var(--ok) 50%,var(--line));color:var(--ok)}
 .aiChips .aiChip[data-aid]:not(.err){cursor:default}
 
 /* ---- 入力欄（画面下部に固定。キーボード時は visualViewport で高さ追従） ---- */
@@ -128,8 +128,8 @@ html.aiWsOpen body{overscroll-behavior:none}
 .apMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .apTitle{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13.5px}
 .apType{font-size:10.5px;font-weight:700;border-radius:3px;padding:1px 6px;color:var(--accent-ink);background:var(--accent)}
-.apType.tk{background:var(--ok);color:#fff}
-[data-theme="dark"] .apType.tk{color:#0d1a12}
+.apType.apTk{background:var(--ok);color:#fff}
+[data-theme="dark"] .apType.apTk{color:#0d1a12}
 .apBadge{font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;border:1px solid var(--line-2);color:var(--ink-2)}
 .apBadge.guess{border-color:var(--warn);color:var(--warn)}
 .apBadge.dup{border-color:var(--danger);color:var(--danger)}
@@ -190,3 +190,23 @@ html.aiWsOpen body{overscroll-behavior:none}
 .aiDest button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
 .aiDest button[data-dest=local].on{background:var(--ok);color:#fff}
 .aiBadge.warn{border-color:color-mix(in srgb,var(--warn,#d99a2b) 60%,var(--line));color:var(--warn,#d99a2b)}
+
+/* ---- UI整理（2026-10） ---- */
+/* チップが縮んで重なるのを防ぐ（iOS Safari で「参照」ラベルと重なっていた） */
+.aiAtts>*,.aiRefs>*,.aiStations>*,.aiChips>*{flex:0 0 auto;max-width:100%}
+.aiRefs{row-gap:6px}
+.aiChip.ref{flex-shrink:0}
+/* 回答下のツール行: 1段目=バッジ＋操作ボタン、2段目=送信内容（細字） */
+.aiTools{row-gap:2px}
+.aiTools .aiSentInfo{order:5;flex:1 0 100%;font-size:11px;line-height:1.4}
+.aiTools .btn.sm.ghost{padding-left:8px;padding-right:8px}
+/* ヘッダー: タイトルは1行、状態は下に省略表示 */
+.aiWsTitle h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:820px){
+  .aiCtxLbl{display:none}
+  .aiPill small,.aiPill .long{display:none}
+  .aiPill{padding:0 9px}
+  .aiDest button{padding:2px 9px}
+  .aiCtx{gap:5px}
+  .aiWsTitle .hint{max-width:calc(100vw - 240px)}
+}

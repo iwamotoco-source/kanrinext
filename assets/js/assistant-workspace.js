@@ -106,7 +106,7 @@
       <header class="aiWsHead">
         <button class="btn ghost icon aiHistBtn" type="button" id="aiHistBtn" aria-label="会話履歴">${icon('menu')}</button>
         <div class="aiMark">AI</div>
-        <div class="aiWsTitle"><h2>工事管理next AI Workspace</h2><div class="hint" id="aiStatus"></div></div>
+        <div class="aiWsTitle"><h2>工事管理next AI</h2><div class="hint" id="aiStatus"></div></div>
         <span class="grow"></span>
         <button class="btn ghost icon" type="button" id="aiNew" title="新しい会話" aria-label="新しい会話">${icon('plus')}</button>
         <button class="btn ghost icon" type="button" id="aiSpeakToggle" title="自動読み上げ" aria-label="自動読み上げ" aria-pressed="false"></button>
@@ -233,7 +233,7 @@
       if(ctx.off)bits.push('<span class="aiCtxNote">予定・タスクは送信しません（設定）</span>');
       else{
         bits.push(`<button type="button" class="aiPill ${S.ctx.events?'on':''}" data-ctx="events" aria-pressed="${S.ctx.events}">予定 ${S.ctx.events?ctx.counts.events+'件':'送らない'}${S.ctx.events&&ctx.range?`<small>${fmtMD(ctx.range.from)}〜${fmtMD(ctx.range.to)}</small>`:''}</button>`);
-        bits.push(`<button type="button" class="aiPill ${S.ctx.tasks?'on':''}" data-ctx="tasks" aria-pressed="${S.ctx.tasks}">未完了タスク ${S.ctx.tasks?ctx.counts.tasks+'件':'送らない'}</button>`);
+        bits.push(`<button type="button" class="aiPill ${S.ctx.tasks?'on':''}" data-ctx="tasks" aria-pressed="${S.ctx.tasks}"><span class="long">未完了</span>タスク ${S.ctx.tasks?ctx.counts.tasks+'件':'送らない'}</button>`);
       }
       if(q||hasFiles)bits.push(`<span class="aiCtxNote">${!ready?'外部AI未設定':c.localOnly?'ローカルのみ（送信しません）':`送信先：${esc(provLabel())}（Vercel経由）`}</span>`);
     }
@@ -384,7 +384,7 @@
     const refs=[...(m.refs||[])];
     return refs.length?`<div class="aiRefs"><span class="aiRefLbl">参照</span>${refs.map(r=>{
       const att=(m.attachments||[]).find(a=>a.name===r);
-      return att?chipHtml(att,{state:'ref'}):`<span class="aiChip ref ${r==='予定'?'ev':r==='タスク'?'tk':''}"><span class="nm">${esc(r)}</span></span>`;
+      return att?chipHtml(att,{state:'ref'}):`<span class="aiChip ref ${r==='予定'?'refEv':r==='タスク'?'refTk':''}"><span class="nm">${esc(r)}</span></span>`;
     }).join('')}</div>`:'';
   }
   function renderMsg(m){

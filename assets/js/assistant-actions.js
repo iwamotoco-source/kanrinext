@@ -182,7 +182,7 @@
     const done=p.status==='applied',gone=p.status==='dismissed';
     const st=f.station?stChip(f.station):'';
     const badges=[
-      `<span class="apType ${ev?'ev':'tk'}">${esc(LABEL[p.type])}</span>`,
+      `<span class="apType ${ev?'apEv':'apTk'}">${esc(LABEL[p.type])}</span>`,
       p.guess?'<span class="apBadge guess" title="資料から断定できず、AIが推測した項目を含みます">推測</span>':'',
       p.dup?'<span class="apBadge dup" title="同じ日付・同名の予定/タスクが既にあります">重複の可能性</span>':'',
       done?'<span class="apBadge ok">追加済み</span>':'',gone?'<span class="apBadge off">却下</span>':''
