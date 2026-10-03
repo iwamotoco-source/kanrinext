@@ -14,7 +14,10 @@
      localOnly 「ローカルのみ」（オンの間は外部AIへ何も送らない） */
   const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true,
     sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false,
-    provider:'gemini',fallbackToOpenAI:false,localOnly:false,profile:''};
+    provider:'gemini',fallbackToOpenAI:false,localOnly:false,profile:'',
+    /* 読み上げ音声（assistant-tts.js）。既定値はHugging Face mikuTTS Spaceの初期設定に合わせる */
+    voiceMode:'character',ttsEndpoint:'',ttsKey:'',ttsFallback:true,ttsPitch:6,ttsSpeed:0,ttsVolume:100,
+    ttsModel:'',ttsVoice:'ja-JP-NanamiNeural',ttsF0:'rmvpe',ttsIndexRate:1,ttsProtect:0.33,ttsFilterRadius:3,ttsRmsMix:0.25};
   const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI'};
   const providerOf=c=>(c&&c.provider==='openai')?'openai':'gemini';
   const providerLabel=p=>PROVIDER_LABEL[p]||String(p||'');
@@ -389,6 +392,37 @@
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiConfirmFile" ${c.confirmFileSend!==false?'checked':''}>添付ファイルを送る前に内容を確認する</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSaveHistory" ${c.saveHistory!==false?'checked':''}>会話履歴をこの端末に保存する（ファイルの中身は保存しません）</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiAutoSpeak" ${c.autoSpeak?'checked':''}>AIの回答を自動で読み上げる</label>
+        <div style="height:1px;background:var(--line);margin:14px 0 4px"></div>
+        <div class="hint" style="font-weight:700;margin-bottom:2px">読み上げ音声</div>
+        <div class="ttsModes" role="radiogroup" aria-label="読み上げ音声">
+          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="character" ${(c.voiceMode||'character')==='character'?'checked':''}>キャラクター音声（Edge TTS → RVC。自分のPC上のTTSサーバーで生成）</label>
+          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="browser" ${c.voiceMode==='browser'?'checked':''}>ブラウザ標準音声</label>
+          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="off" ${c.voiceMode==='off'?'checked':''}>読み上げなし</label>
+        </div>
+        <div id="aiTtsBox" style="margin-top:8px">
+          <label style="display:block"><span class="hint">TTSサーバーのURL</span><input id="aiTtsEndpoint" type="url" inputmode="url" autocomplete="off" placeholder="例：https://pc名.tailnet名.ts.net　または　http://localhost:8765" style="width:100%" value="${esc(c.ttsEndpoint||'')}"></label>
+          <label style="display:block;margin-top:6px"><span class="hint">TTSアクセスキー（サーバー起動時に表示されるもの。AIアクセスキーとは別）</span><input id="aiTtsKey" type="password" autocomplete="off" style="width:100%" value="${esc(c.ttsKey||'')}"></label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <label style="flex:1;min-width:110px"><span class="hint">声の高さ(Tune)</span><input id="aiTtsPitch" type="number" step="1" min="-24" max="24" style="width:100%" value="${esc(c.ttsPitch??6)}"></label>
+            <label style="flex:1;min-width:110px"><span class="hint">速度(%)</span><input id="aiTtsSpeed" type="number" step="10" min="-100" max="100" style="width:100%" value="${esc(c.ttsSpeed??0)}"></label>
+            <label style="flex:1;min-width:110px"><span class="hint">音量(%)</span><input id="aiTtsVolume" type="number" step="10" min="0" max="100" style="width:100%" value="${esc(c.ttsVolume??100)}"></label>
+          </div>
+          <label class="check" style="margin-top:10px"><input type="checkbox" id="aiTtsFallback" ${c.ttsFallback!==false?'checked':''}>キャラクター音声が利用できない場合、ブラウザ音声を使用</label>
+          <details style="margin-top:8px"><summary class="hint">詳細設定（通常は変更不要）</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+              <label><span class="hint">モデル名（空欄=サーバーの既定）</span><input id="aiTtsModel" style="width:100%" value="${esc(c.ttsModel||'')}"></label>
+              <label><span class="hint">Edge TTS の話者</span><input id="aiTtsVoice" style="width:100%" value="${esc(c.ttsVoice||'ja-JP-NanamiNeural')}"></label>
+              <label><span class="hint">ピッチ抽出</span><select id="aiTtsF0" style="width:100%"><option value="rmvpe" ${c.ttsF0!=='pm'?'selected':''}>rmvpe</option><option value="pm" ${c.ttsF0==='pm'?'selected':''}>pm</option></select></label>
+              <label><span class="hint">Index Rate (0–1)</span><input id="aiTtsIndexRate" type="number" step="0.05" min="0" max="1" style="width:100%" value="${esc(c.ttsIndexRate??1)}"></label>
+              <label><span class="hint">Protect (0–0.5)</span><input id="aiTtsProtect" type="number" step="0.01" min="0" max="0.5" style="width:100%" value="${esc(c.ttsProtect??0.33)}"></label>
+              <label><span class="hint">Filter Radius (0–7)</span><input id="aiTtsFilterRadius" type="number" step="1" min="0" max="7" style="width:100%" value="${esc(c.ttsFilterRadius??3)}"></label>
+              <label><span class="hint">RMS Mix Rate (0–1)</span><input id="aiTtsRmsMix" type="number" step="0.05" min="0" max="1" style="width:100%" value="${esc(c.ttsRmsMix??0.25)}"></label>
+            </div>
+          </details>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" id="aiTtsTest">音声サーバーの接続テスト</button><button class="btn sm" type="button" id="aiTtsSample">試し聞き</button></div>
+          <div id="aiTtsResult" class="hint" style="margin-top:8px;line-height:1.7" aria-live="polite"></div>
+          <div class="hint" style="margin-top:6px">読み上げのためにGeminiへ追加で送信することはありません（すでに表示された回答の文字列だけを、あなたのTTSサーバーへ送ります）。モデルファイルはこのアプリには含まれず、PC側にだけ置きます。</div>
+        </div>
         <div style="margin-top:12px"><button class="btn sm danger" type="button" id="aiClearHist">会話履歴をすべて削除</button></div>
         <div id="aiTestResult" class="hint" style="margin-top:12px;line-height:1.8" aria-live="polite"></div>
       </div>
@@ -397,6 +431,23 @@
         const $b=s=>box.querySelector(s);
         const en=$b('#aiEnabled'),ep=$b('#aiEndpoint'),key=$b('#aiAccessKey'),local=$b('#aiPreferLocal'),notes=$b('#aiSendNotes'),out=$b('#aiTestResult'),testBtn=$b('#aiTest');
         const sched=$b('#aiSendSchedule'),acts=$b('#aiActions'),cfm=$b('#aiConfirmFile'),hist=$b('#aiSaveHistory'),spk=$b('#aiAutoSpeak');
+        const readTts=()=>{const v=id=>($b('#'+id)||{}).value,n=(id,d)=>{const x=parseFloat(v(id));return isFinite(x)?x:d};
+          return {voiceMode:(box.querySelector('input[name=aiVoiceMode]:checked')||{}).value||'character',ttsEndpoint:String(v('aiTtsEndpoint')||'').trim(),ttsKey:String(v('aiTtsKey')||'').replace(/[\s\u200B-\u200D\uFEFF]+/g,''),
+            ttsFallback:!!($b('#aiTtsFallback')&&$b('#aiTtsFallback').checked),ttsPitch:n('aiTtsPitch',6),ttsSpeed:n('aiTtsSpeed',0),ttsVolume:n('aiTtsVolume',100),
+            ttsModel:String(v('aiTtsModel')||'').trim(),ttsVoice:String(v('aiTtsVoice')||'').trim()||'ja-JP-NanamiNeural',ttsF0:v('aiTtsF0')==='pm'?'pm':'rmvpe',
+            ttsIndexRate:n('aiTtsIndexRate',1),ttsProtect:n('aiTtsProtect',0.33),ttsFilterRadius:n('aiTtsFilterRadius',3),ttsRmsMix:n('aiTtsRmsMix',0.25)}};
+        const ttsBox=$b('#aiTtsBox');
+        const syncTts=()=>{const m=(box.querySelector('input[name=aiVoiceMode]:checked')||{}).value;ttsBox.style.display=m==='character'?'':'none'};
+        box.querySelectorAll('input[name=aiVoiceMode]').forEach(r=>r.onchange=syncTts);syncTts();
+        const ttsOut=$b('#aiTtsResult');
+        $b('#aiTtsTest').onclick=async()=>{ttsOut.textContent='接続を確認しています…';const r=await KoujiTTS.test(readTts());ttsOut.textContent=(r.ok?'✔ ':'✘ ')+r.msg};
+        $b('#aiTtsSample').onclick=()=>{
+          /* 保存前の入力値で試せるよう、一時的に反映して再生し、直後に元へ戻す */
+          const keep=Object.assign({},aiCfg());saveAiCfg(readTts());ttsOut.textContent='音声を生成しています…';
+          KoujiTTS.clearCache();
+          KoujiTTS.sample('',{onStart:()=>{ttsOut.textContent='再生中'},onEnd:()=>{ttsOut.textContent='再生しました'},onError:()=>{ttsOut.textContent='✘ 再生できませんでした（接続テストで原因を確認してください）'},onFallback:why=>{ttsOut.textContent='キャラクター音声に接続できないため、ブラウザ音声で再生します'}});
+          localCfg.ai=keep;saveLocal();
+        };
         $b('#aiClearHist').onclick=async()=>{
           if(!window.KoujiAIStore)return;
           if(await confirmBox('AI Workspaceの会話履歴をすべて削除します。予定・タスクのデータは変わりません。',{ok:'削除する'})){await KoujiAIStore.clear();window.KoujiAIWorkspace&&KoujiAIWorkspace.reloadHistory&&KoujiAIWorkspace.reloadHistory();toast('会話履歴を削除しました')}
@@ -416,7 +467,7 @@
         refreshProv();
         /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
         const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked,
-          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,profile:(($b('#aiProfile')||{}).value||'').trim().slice(0,1500),
+          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,...readTts(),profile:(($b('#aiProfile')||{}).value||'').trim().slice(0,1500),
           provider:(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini',fallbackToOpenAI:!!($b('#aiFallback')&&$b('#aiFallback').checked&&(box.querySelector('input[name=aiProv]:checked')||{}).value!=='openai')}};
         $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
         testBtn.onclick=async()=>{

@@ -1,0 +1,4 @@
+# ローカルTTSサーバー用（Python 3.10 推奨）。モデル本体は含まれません。
+edge-tts>=6.1.7
+rvc-python>=0.1.0      # MIT。RVC推論（Edge TTS の声をモデルの声へ変換）。GPU版torchは別途 README 参照
+# ffmpeg も必要（PATHに通す）: winget install Gyan.FFmpeg

@@ -29,7 +29,7 @@
   }
 
   const views=new Set();
-  const S={base:'greeting',holds:[],flashState:null,flashTimer:0,speaking:false,state:'greeting',idleTimer:0,mouthT:0,mouthEpoch:0,blinkT:0,started:false,log:[]};
+  const S={base:'greeting',holds:[],flashState:null,flashTimer:0,speaking:false,audioDriven:false,state:'greeting',idleTimer:0,mouthT:0,mouthEpoch:0,blinkT:0,started:false,log:[]};
 
   function effective(){
     if(S.flashState)return S.flashState;
@@ -104,9 +104,10 @@
   }
   /* ----- 口パク（読み上げ中のみ。closed/half/open をランダムに110〜200ms間隔で）----- */
   function syncMouth(){
-    S.mouthEpoch++;clearTimeout(S.mouthT);
+    S.mouthEpoch++;clearTimeout(S.mouthT);S.mouthFrame=null;
     const st=[...views].filter(v=>v.kind==='stage');
     if(!S.speaking||!ANIM_OK.has(S.state)||document.hidden){st.forEach(v=>v.setOverlay('mouth',null));return}
+    if(S.audioDriven)return;   /* 音声の音量で口を動かしている間は疑似口パクを止める */
     const ep=S.mouthEpoch,frames=reduced()?['closed','half']:['closed','half','open','half'];
     const tick=()=>{
       if(ep!==S.mouthEpoch)return;
@@ -155,8 +156,18 @@
     setSpeaking(on){
       on=!!on;
       if(on){api.hold('tts','speaking')}else{api.release('tts')}
+      if(!on)S.audioDriven=false;
       S.speaking=on;syncMouth();
       if(on)arm();
+    },
+    /* 再生中の音量(0〜1)で口を動かす。null で疑似口パクに戻す。AI/RVCへは問い合わせない（JS側の簡易リップシンク） */
+    setMouthLevel(level){
+      if(level===null||level===undefined){if(S.audioDriven){S.audioDriven=false;syncMouth()}return}
+      if(!S.speaking||!ANIM_OK.has(S.state)||document.hidden)return;
+      if(!S.audioDriven){S.audioDriven=true;S.mouthEpoch++;clearTimeout(S.mouthT)}
+      const lv=+level||0,f=lv<0.06?'closed':lv<0.18?'half':'open';
+      if(S.mouthFrame===f)return;S.mouthFrame=f;
+      [...views].filter(v=>v.kind==='stage').forEach(v=>v.setOverlay('mouth',f));
     },
     mount(el,opts={}){
       const kind=opts.kind||'icon';

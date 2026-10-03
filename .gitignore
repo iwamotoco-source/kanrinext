@@ -7,3 +7,16 @@ node_modules/
 
 mock.log
 *.log
+
+# --- ローカルTTS: モデル・鍵は絶対にコミットしない（第三者のRVCモデルは再配布不可） ---
+local-tts/models/*
+!local-tts/models/README.md
+local-tts/token.txt
+local-tts/.venv/
+local-tts/__pycache__/
+*.pth
+*.index
+*.pt
+*.onnx
+*.ckpt
+*.safetensors

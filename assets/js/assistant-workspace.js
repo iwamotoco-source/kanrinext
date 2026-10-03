@@ -488,11 +488,14 @@
     }
     const sp=row.querySelector('[data-speak]');
     if(sp){
-      const upd=()=>{const on=Voice().tts.speakingKey===m.id;sp.classList.toggle('on',on);sp.innerHTML=ic(on?'stop':'spk')+(on?'停止':'読み上げ')};
+      let gen=false;
+      const upd=()=>{const on=Voice().tts.speakingKey===m.id;sp.classList.toggle('on',on);sp.innerHTML=ic(on?'stop':'spk')+(on?(gen?'生成中…停止':'停止'):'読み上げ');sp.title=on&&gen?'音声を生成しています…':''};
       sp.onclick=()=>{
-        if(Voice().tts.speakingKey===m.id){Voice().tts.stop();upd();return}
-        if(!Voice().tts.supported()){toast('このブラウザは読み上げに対応していません');return}
-        Voice().tts.speak(m.id,m.text,{onStart:upd,onEnd:upd,onError:()=>toast('読み上げに失敗しました')});upd();
+        if(Voice().tts.speakingKey===m.id){Voice().tts.stop();gen=false;upd();return}
+        if(!Voice().tts.supported()){toast(window.KoujiTTS&&KoujiTTS.mode()==='off'?'読み上げは設定でオフになっています':'このブラウザは読み上げに対応していません');return}
+        Voice().tts.unlock();   /* iOS: ユーザー操作の中で音声を解錠（キャラクター音声は Web Audio） */
+        Voice().tts.speak(m.id,m.text,{onStart:()=>{gen=false;upd()},onEnd:()=>{gen=false;upd()},onError:()=>{gen=false;toast('読み上げに失敗しました');upd()},
+          onGenerating:g=>{gen=!!g;upd()},onFallback:()=>toast('キャラクター音声に接続できないため、ブラウザ音声で読み上げます')});upd();
       };
     }
     const cp=row.querySelector('[data-copy]');

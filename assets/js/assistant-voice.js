@@ -124,11 +124,13 @@
       engine.speak(text,{
         onStart:()=>{av&&av.setSpeaking(true);cb.onStart&&cb.onStart()},
         onEnd:()=>{if(speakingKey===key){speakingKey=null;av&&av.setSpeaking(false)}cb.onEnd&&cb.onEnd()},
-        onError:c=>{if(speakingKey===key){speakingKey=null;av&&av.setSpeaking(false)}cb.onError&&cb.onError(c);cb.onEnd&&cb.onEnd()}
+        onError:c=>{if(speakingKey===key){speakingKey=null;av&&av.setSpeaking(false)}try{av&&av.flash('error',3000)}catch(e){}cb.onError&&cb.onError(c);cb.onEnd&&cb.onEnd()},
+        onGenerating:on=>{cb.onGenerating&&cb.onGenerating(on)},                 /* キャラクター音声の生成待ち */
+        onFallback:why=>{try{av&&av.flash('warning',1500)}catch(e){}cb.onFallback&&cb.onFallback(why)}   /* ブラウザ音声へ切替 */
       });
     },
     stop(){const k=speakingKey;speakingKey=null;try{engine.stop()}catch(e){}if(window.KoujiAvatar)KoujiAvatar.setSpeaking(false);return k}
   };
 
-  window.KoujiAIVoice={rec,tts,_t:{speakText,chunk}};
+  window.KoujiAIVoice={rec,tts,browser:browserEngine,_t:{speakText,chunk}};
 })();
