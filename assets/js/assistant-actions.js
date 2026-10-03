@@ -131,6 +131,10 @@
       catch(e){p.status='failed';p.invalid=e.message||'実行できませんでした';failed++}
     });
     if(done)commit();
+    try{   /* アバターの状態通知（登録中 → 成功/失敗）。ローカル処理のみ */
+      const av=window.KoujiAvatar;
+      if(av){av.flash(sel.some(p=>isEvent(p.type))?'calendar':'task',700);setTimeout(()=>av.flash(done?'success':'error',done?2200:3000),700)}
+    }catch(e){}
     return {done,failed,undo};
   }
   function summaryLabel(list){

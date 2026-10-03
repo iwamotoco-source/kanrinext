@@ -120,13 +120,14 @@
     get speakingKey(){return speakingKey},
     speak(key,text,cb={}){
       this.stop();speakingKey=key;
+      const av=window.KoujiAvatar;   /* 口パクはこの読み上げイベントだけで制御（AI APIは使わない） */
       engine.speak(text,{
-        onStart:()=>{cb.onStart&&cb.onStart()},
-        onEnd:()=>{if(speakingKey===key)speakingKey=null;cb.onEnd&&cb.onEnd()},
-        onError:c=>{if(speakingKey===key)speakingKey=null;cb.onError&&cb.onError(c);cb.onEnd&&cb.onEnd()}
+        onStart:()=>{av&&av.setSpeaking(true);cb.onStart&&cb.onStart()},
+        onEnd:()=>{if(speakingKey===key){speakingKey=null;av&&av.setSpeaking(false)}cb.onEnd&&cb.onEnd()},
+        onError:c=>{if(speakingKey===key){speakingKey=null;av&&av.setSpeaking(false)}cb.onError&&cb.onError(c);cb.onEnd&&cb.onEnd()}
       });
     },
-    stop(){const k=speakingKey;speakingKey=null;try{engine.stop()}catch(e){}return k}
+    stop(){const k=speakingKey;speakingKey=null;try{engine.stop()}catch(e){}if(window.KoujiAvatar)KoujiAvatar.setSpeaking(false);return k}
   };
 
   window.KoujiAIVoice={rec,tts,_t:{speakText,chunk}};

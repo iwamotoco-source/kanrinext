@@ -3,31 +3,45 @@
    Light: コンクリート面 + 小田急ブルー / Dark: 夜間作業
    ========================================================= */
 :root{
-  --bg:#f4f1ea; --surface:#fffdf9; --surface-2:#f1ede4; --surface-3:#e9e4d9;
-  --line:#e6e1d5; --line-2:#d6cfc0;
-  --ink:#2a2622; --ink-2:#5d564d; --ink-3:#8c8478;
-  --accent:#c2562f; --accent-ink:#ffffff; --accent-soft:#f8e8e0; --accent-line:#ebc3b2;
-  --sat:#3b6cb0;
-  --danger:#b83a2b; --ok:#3d7a53; --warn:#a0701a;
+  /* ===== デザイントークン（紺 × 水色）— ライト ===== */
+  --bg:#edf2f9; --surface:#ffffff; --surface-elevated:#ffffff;
+  --text:#0c1a33; --text-muted:#5b6f90;
+  --border:#d4deed;
+  --primary:#0a7db5; --primary-hover:#096a9a; --primary-ink:#ffffff;
+  --accent:var(--primary); --accent-ink:var(--primary-ink);
+  --accent-soft:#dcf0fa; --accent-line:#9ccfe9; --glow:rgba(10,125,181,.18);
+  --success:#18805a; --warning:#9a6a00; --danger:#c43747;
+  --sat:#2f6fc0;
+  /* 以下は既存CSSが参照する別名（実体は上のトークン） */
+  --surface-2:#f2f6fc; --surface-3:#e3ebf6;
+  --line:var(--border); --line-2:#bccbe0;
+  --ink:var(--text); --ink-2:#38507a; --ink-3:var(--text-muted);
+  --ok:var(--success); --warn:var(--warning);
   --now:#d6372a;
   --line-odawara:#d9483f; --line-enoshima:#3f9e5f; --line-tama:#c98a24;
-  --shadow-pop:0 1px 0 rgba(60,40,20,.04),0 16px 40px -12px rgba(60,40,20,.30);
-  --shadow-card:0 1px 2px rgba(60,40,20,.05),0 4px 14px -6px rgba(60,40,20,.10);
+  --shadow-pop:0 1px 0 rgba(0,20,60,.04),0 16px 40px -12px rgba(0,25,70,.30);
+  --shadow-card:0 1px 2px rgba(0,25,70,.06),0 4px 14px -6px rgba(0,25,70,.12);
   --rail-w:248px; --pane-w:340px; --top-h:56px;
   --r-s:8px; --r-m:12px; --r-l:18px;
   --font:"BIZ UDPGothic","BIZ UDPゴシック","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,system-ui,sans-serif;
-  --font-serif:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","BIZ UDPMincho",serif;
+  --font-serif:var(--font);
   color-scheme:light;
 }
 [data-theme="dark"]{
-  --bg:#1d1b18; --surface:#27241f; --surface-2:#2f2b26; --surface-3:#39342d;
-  --line:#37322b; --line-2:#4a443b;
-  --ink:#f0ece3; --ink-2:#c0b8aa; --ink-3:#8f8779;
-  --accent:#e58b69; --accent-ink:#2a140b; --accent-soft:#3a2a22; --accent-line:#6d4636;
-  --sat:#83a9de;
-  --danger:#ee8576; --ok:#7cc496; --warn:#e3b95c; --now:#ff6b5e;
-  --shadow-pop:0 1px 0 rgba(255,255,255,.03),0 18px 44px -10px rgba(0,0,0,.65);
-  --shadow-card:0 1px 2px rgba(0,0,0,.3),0 6px 18px -8px rgba(0,0,0,.45);
+  /* ===== 紺 × 水色 — ダーク（標準） ===== */
+  --bg:#060b16; --surface:#0d1628; --surface-elevated:#14213b;
+  --text:#e9f2fc; --text-muted:#8196b3;
+  --border:#1f3050;
+  --primary:#3cc8f5; --primary-hover:#74dcfb; --primary-ink:#03212f;
+  --accent-soft:#0e2d45; --accent-line:#1f5c7c; --glow:rgba(60,200,245,.28);
+  --success:#4fd3a3; --warning:#f0c350; --danger:#ff7d89;
+  --sat:#86b8ff;
+  --surface-2:#101b31; --surface-3:#1a2b49;
+  --line-2:#2d4268;
+  --ink-2:#b5c6dc;
+  --now:#ff6b5e;
+  --shadow-pop:0 1px 0 rgba(120,180,255,.04),0 18px 44px -10px rgba(0,0,0,.7);
+  --shadow-card:0 1px 2px rgba(0,0,0,.4),0 6px 18px -8px rgba(0,0,0,.55);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -257,7 +271,7 @@ body.paneClosed .pane{display:none}
 .menu button{display:flex;align-items:center;gap:9px;width:100%;height:32px;padding:0 10px;border-radius:4px;font-size:13px;text-align:left}
 .menu button:hover{background:var(--surface-2)}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
-.scrim{position:fixed;inset:0;background:rgba(15,18,22,.42);z-index:1500;display:none;align-items:flex-start;justify-content:center;padding:6vh 16px 16px;overflow:auto}
+.scrim{position:fixed;inset:0;background:rgba(2,6,16,.58);z-index:1500;display:none;align-items:flex-start;justify-content:center;padding:6vh 16px 16px;overflow:auto}
 .scrim.on{display:flex}
 .modal{width:min(640px,100%);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-l);box-shadow:var(--shadow-pop);display:flex;flex-direction:column;max-height:88vh}
 .modal.wide{width:min(880px,100%)}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1d1b18">
+<meta name="theme-color" content="#060b16">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -67,6 +67,7 @@
   <symbol id="i-key" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="11" rx="2"/><path d="M7 10.5h.01M10.5 10.5h.01M14 10.5h.01M17 10.5h.01M8 14h8"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></symbol>
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/></symbol>
   <symbol id="i-reload" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5V9H15"/></symbol>
 </svg>
@@ -107,10 +108,11 @@
   <!-- メイン -->
   <main class="main">
     <header class="topbar">
-      <button class="btn ghost icon" id="menuBtn" type="button" aria-label="メニュー"><svg class="i"><use href="#i-menu"/></svg></button>
+      <button class="btn ghost icon dOnly" id="menuBtn" type="button" aria-label="メニュー"><svg class="i"><use href="#i-menu"/></svg></button>
       <div class="viewTitle" id="viewTitle">ホーム</div>
       <button class="omni" id="omniBtn" type="button"><svg class="i"><use href="#i-search"/></svg><span>駅・予定・ツールを検索</span><kbd class="hideM">Ctrl K</kbd></button>
       <button class="syncPill" id="syncBtn" type="button" title="今すぐ同期"><i></i><span class="lbl" id="syncLabel">ローカル保存</span></button>
+      <button class="btn ghost icon mOnly" id="gearBtn" type="button" title="設定" aria-label="設定"><svg class="i"><use href="#i-cog"/></svg></button>
       <button class="btn ghost icon" id="paneBtn" type="button" title="タスク一覧を開閉" aria-label="タスク一覧を開閉"><svg class="i"><use href="#i-sideR"/></svg></button>
     </header>
 
@@ -126,10 +128,10 @@
               <div class="wxTools"><button type="button" data-wx="hours" aria-pressed="true">これから</button><button type="button" data-wx="week" aria-pressed="false">週間</button></div>
             </div>
           </div>
-          <div class="quickRow" id="homeQuick" role="group" aria-label="すばやく操作">
+          <div class="quickRow" id="homeQuick" role="group" aria-label="AIと、すばやい操作">
+            <button type="button" class="aiBrief" id="homeAiCard" aria-label="AIアシスタントに相談する"><span class="aiBriefAv" id="homeAiAv"><img class="kn-icon" alt="" aria-hidden="true" src="./assets/avatar/i/smile.webp?v=20261004-av2" width="56" height="56"></span><span class="aiBriefTx"><b id="homeAiMsg">お疲れさまです。</b><small>タップしてAIに相談（予定の確認・資料の読み取り）</small></span><svg class="i aiBriefGo" aria-hidden="true"><use href="#i-right"/></svg></button>
             <button type="button" class="qTile" data-q="event"><span class="qIc"><svg class="i"><use href="#i-cal"/></svg></span><span class="qTx"><b>予定を追加</b><small>日時と場所を登録</small></span></button>
             <button type="button" class="qTile" data-q="task"><span class="qIc"><svg class="i"><use href="#i-check"/></svg></span><span class="qTx"><b>タスクを追加</b><small>やることを記録</small></span></button>
-            <button type="button" class="qTile qAi" data-q="ai"><span class="qIc"><svg class="i"><use href="#i-spark"/></svg></span><span class="qTx"><b>AIに相談</b><small>予定の整理・資料の読み取り</small></span></button>
           </div>
           <div class="homeLeft">
             <section class="panel" style="flex:1;min-height:300px">
@@ -212,12 +214,12 @@
 </div>
 
 <!-- モバイル下部タブ -->
-<nav class="tabbar" id="tabbar" aria-label="画面切替">
-  <button type="button" data-route="home"><svg class="i"><use href="#i-home"/></svg>ホーム</button>
-  <button type="button" data-route="calendar"><svg class="i"><use href="#i-cal"/></svg>カレンダー</button>
-  <button type="button" data-route="map"><svg class="i"><use href="#i-map"/></svg>マップ</button>
-  <button type="button" data-act="tasks"><svg class="i"><use href="#i-check"/></svg>タスク</button>
-  <button type="button" data-act="menu"><svg class="i"><use href="#i-menu"/></svg>ツール</button>
+<nav class="tabbar" id="tabbar" aria-label="メインナビゲーション">
+  <button type="button" data-route="home"><svg class="i"><use href="#i-home"/></svg><span>ホーム</span></button>
+  <button type="button" data-route="calendar"><svg class="i"><use href="#i-cal"/></svg><span>予定</span></button>
+  <button type="button" data-act="ai" class="tabAi" id="tabAi" aria-label="AIアシスタントを開く"><span class="tabAiOrb" id="navAvatar"><img class="kn-icon" alt="" aria-hidden="true" src="./assets/avatar/i/idle.webp?v=20261004-av2" width="56" height="56"><span class="knWave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></span><span class="tabAiLbl">AI</span></button>
+  <button type="button" data-act="tasks"><svg class="i"><use href="#i-check"/></svg><span>タスク</span></button>
+  <button type="button" data-act="menu"><svg class="i"><use href="#i-grid"/></svg><span>ツール</span></button>
 </nav>
 
 <div class="scrim" id="scrim"></div>
@@ -227,13 +229,14 @@
 <input type="file" id="fileJson" accept=".json,application/json" hidden>
 
 <script src="./assets/vendor/leaflet/leaflet.js"></script>
-<script src="./assets/js/stations.js?v=20261004-ui2"></script>
-<script src="./assets/js/core.js?v=20261004-ui2"></script>
-<script src="./assets/js/holidays.js?v=20261004-ui2"></script>
-<script src="./assets/js/recur.js?v=20261004-ui2"></script>
-<script src="./assets/js/calendar.js?v=20261004-ui2"></script>
-<script src="./assets/js/event-editor.js?v=20261004-ui2"></script>
-<script src="./assets/js/ics.js?v=20261004-ui2"></script>
-<script src="./assets/js/app.js?v=20261004-ui2"></script>
+<script src="./assets/js/stations.js?v=20261004-av2"></script>
+<script src="./assets/js/core.js?v=20261004-av2"></script>
+<script src="./assets/js/holidays.js?v=20261004-av2"></script>
+<script src="./assets/js/recur.js?v=20261004-av2"></script>
+<script src="./assets/js/calendar.js?v=20261004-av2"></script>
+<script src="./assets/js/event-editor.js?v=20261004-av2"></script>
+<script src="./assets/js/ics.js?v=20261004-av2"></script>
+<script src="./assets/js/avatar.js?v=20261004-av2"></script>
+<script src="./assets/js/app.js?v=20261004-av2"></script>
 </body>
 </html>

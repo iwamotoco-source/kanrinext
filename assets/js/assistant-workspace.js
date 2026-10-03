@@ -91,6 +91,40 @@
   function pushMsg(m){S.conv.messages.push(m);if(m.role==='user'&&S.conv.title==='新しい会話')S.conv.title=Store().titleOf(m.text);return m}
 
   /* ---------- 画面の組み立て ---------- */
+  const AV_=()=>window.KoujiAvatar||{hold(){},release(){},flash(){},setSpeaking(){},mount(){return {unmount(){}}},state:'idle'};
+  /* 通信・処理の状態を小さなステータスで表示（アバターの状態＝アプリが今していること） */
+  function liveText(){
+    const st=AV_().state,c=cfg();
+    if(st==='error')return {t:'エラー',k:'err'};
+    if(st==='analyzing'||st==='document'||st==='image')return {t:'解析中',k:'busy'};
+    if(st==='thinking')return {t:AI().providerLabel(AI().providerOf(c))+' 考え中',k:'busy'};
+    if(st==='listening')return {t:'聞き取り中',k:'busy'};
+    if(st==='speaking'||st==='voice')return {t:'回答中',k:'busy'};
+    if(st==='warning')return {t:'確認待ち',k:'warn'};
+    if(st==='local')return {t:'ローカル',k:'local'};
+    if(st==='calendar'||st==='task')return {t:'登録中',k:'busy'};
+    if(st==='success'||st==='celebrate')return {t:'完了',k:'ok'};
+    const ready=c.enabled&&c.endpoint&&c.accessKey;
+    if(c.localOnly)return {t:'ローカルのみ',k:'local'};
+    if(!ready)return {t:'ローカル',k:'local'};
+    return {t:AI().providerLabel(AI().providerOf(c))+' 接続中',k:'ok'};
+  }
+  function updateLive(){const el=S.el&&$q('#aiLive');if(!el)return;const l=liveText();el.textContent=l.t;el.dataset.k=l.k}
+  /* 最新のAI回答だけ小さなアバターを添える（過去の回答には出さない） */
+  function placeAv(){
+    if(!S.el)return;
+    S.el.querySelectorAll('.aiMsgAv').forEach(n=>{n.parentNode&&n.parentNode.classList.remove('hasAv');n.remove()});
+    const bots=S.el.querySelectorAll('#aiMsgs .aiM.bot');const last=bots[bots.length-1];if(!last)return;
+    const a=document.createElement('span');a.className='aiMsgAv';a.setAttribute('aria-hidden','true');
+    a.innerHTML='<img class="kn-icon" alt="" width="40" height="40" src="./assets/avatar/i/idle.webp?v=20261004-av1">';
+    last.classList.add('hasAv');last.prepend(a);AV_().mount(a,{kind:'icon'});
+  }
+  function greetText(){
+    const h=new Date().getHours();let n=0,o=0;
+    try{n=occurrencesBetween(todayISO(),todayISO(),{cats:visibleCats()}).length;o=state.tasks.filter(x=>!x.done).length}catch(e){}
+    const g=h<11?'おはようございます':h<17?'こんにちは':'お疲れさまです';
+    return `${g}。今日は予定が${n}件、未完了のタスクが${o}件あります。`;
+  }
   function build(){
     const el=document.createElement('div');
     el.id='aiWs';el.className='aiWs';el.hidden=true;
@@ -105,8 +139,8 @@
     <section class="aiWsMain">
       <header class="aiWsHead">
         <button class="btn ghost icon aiHistBtn" type="button" id="aiHistBtn" aria-label="会話履歴">${icon('menu')}</button>
-        <div class="aiMark">AI</div>
-        <div class="aiWsTitle"><h2>工事管理next AI</h2><div class="hint" id="aiStatus"></div></div>
+        <div class="aiMark" id="aiHeadAv"><img class="kn-icon" alt="" aria-hidden="true" width="40" height="40" src="./assets/avatar/i/idle.webp?v=20261004-av1"></div>
+        <div class="aiWsTitle"><h2>工事管理next AI <span class="aiLive" id="aiLive" role="status" aria-live="polite"></span></h2><div class="hint" id="aiStatus"></div></div>
         <span class="grow"></span>
         <button class="btn ghost icon" type="button" id="aiNew" title="新しい会話" aria-label="新しい会話">${icon('plus')}</button>
         <button class="btn ghost icon" type="button" id="aiSpeakToggle" title="自動読み上げ" aria-label="自動読み上げ" aria-pressed="false"></button>
@@ -120,7 +154,7 @@
         <div class="aiChips" id="aiChips"></div>
         <div class="aiInRow">
           <button class="btn icon aiRound" type="button" id="aiPlus" aria-label="添付（写真・カメラ・ファイル）" title="添付">${icon('plus')}</button>
-          <textarea id="aiInput" rows="1" placeholder="工事管理next AIに質問・依頼" autocomplete="off" enterkeyhint="send"></textarea>
+          <textarea id="aiInput" rows="1" placeholder="AIに質問・依頼" autocomplete="off" enterkeyhint="send"></textarea>
           <button class="btn icon aiRound" type="button" id="aiMic" aria-label="音声入力" title="音声入力">${ic('mic')}</button>
           <button class="btn primary icon aiRound" type="button" id="aiSend" aria-label="送信" title="送信">${ic('send')}</button>
         </div>
@@ -133,6 +167,8 @@
     document.body.appendChild(el);
     S.el=el;
     wire();
+    AV_().mount($q('#aiHeadAv'),{kind:'icon'});
+    window.addEventListener('kouji-avatar',updateLive);updateLive();
   }
 
   function wire(){
@@ -202,7 +238,7 @@
     }
   }
   function grow(){const t=$q('#aiInput');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,150)+'px'}
-  function scrollBottom(){const s=$q('#aiScroll');if(s)s.scrollTop=s.scrollHeight}
+  function scrollBottom(){const s=$q('#aiScroll');if(!s)return;if(s.querySelector('.aiWelcome')){s.scrollTop=0;return}s.scrollTop=s.scrollHeight}
   function setHist(v){S.histOpen=!!v;S.el.classList.toggle('histOpen',S.histOpen)}
 
   /* ---------- 状態表示・参照中データ ---------- */
@@ -335,10 +371,10 @@
     }
     const base=inp.value?inp.value.replace(/\s+$/,'')+' ':'';
     V.start({
-      onStart:()=>{S.recording=true;showRec(true,'録音中… 話してください（停止で入力欄に反映）')},
+      onStart:()=>{S.recording=true;AV_().hold('mic','listening');showRec(true,'録音中… 話してください（停止で入力欄に反映）')},
       onInterim:t=>{inp.value=base+t;grow();$q('#aiRecText').textContent='録音中… '+t.slice(-40)},
-      onEnd:(final,err)=>{S.recording=false;showRec(false);if(final){inp.value=base+final;grow();scheduleCtx(true);toast('音声を入力しました。内容を確認して送信してください')}},
-      onError:(code,msg)=>{S.recording=false;showRec(false);toast(msg||'音声入力に失敗しました');if(code==='service-not-allowed'||code==='unsupported')inp.focus()}
+      onEnd:(final,err)=>{S.recording=false;AV_().release('mic');showRec(false);if(final){inp.value=base+final;grow();scheduleCtx(true);toast('音声を入力しました。内容を確認して送信してください')}},
+      onError:(code,msg)=>{S.recording=false;AV_().release('mic');showRec(false);toast(msg||'音声入力に失敗しました');if(code==='service-not-allowed'||code==='unsupported')inp.focus()}
     });
   }
   function showRec(on,text){
@@ -351,8 +387,13 @@
     const ready=cfg().enabled&&cfg().endpoint&&cfg().accessKey;
     const L=(t,go)=>`<button type="button" class="aiSug" data-q="${esc(t)}" data-go="${go?1:0}">${esc(t)}</button>`;
     return `<div class="aiWelcome">
-      <h3>施工管理AIワークスペース</h3>
-      <p class="hint">予定・タスクの検索と集計は端末内で処理します。写真・図面・工程表（PDF/Excel）の解析や、自由な言い回しの依頼は外部AIに送ります（送信前に内容を確認できます）。</p>
+      <div class="aiHero"><div class="aiStage" id="aiStage" style="--ratio:1"></div>
+        <h3>${esc(greetText())}</h3>
+        <p class="hint">予定・タスクの検索と集計は端末内で処理します。写真・図面・工程表（PDF/Excel）の解析や、自由な言い回しの依頼は外部AIに送ります（送信前に内容を確認できます）。</p></div>
+      <div class="aiSugs">
+        ${L('今日の予定は？',1)}${L('未完了のタスクは？',1)}${L('優先度が高いタスクは？',1)}${L('期限切れのタスクはある？',1)}${L('来週の予定をまとめて',1)}
+        ${L('明日10時に厚木で現場調査',0)}
+      </div>
       <div class="aiCaps">
         <div><b>端末内で回答</b><span>今日・今週の予定／未完了・優先度高・期限切れのタスク／駅ごとの予定／現場調査の件数</span></div>
         <div><b>写真・図面</b><span>注意点の指摘・記載情報の整理・数量の拾い・確認事項のタスク化</span></div>
@@ -360,19 +401,15 @@
         <div><b>音声</b><span>マイクで入力、回答の読み上げ（設定で自動読み上げ）</span></div>
       </div>
       <div class="aiCaps ops"><div><b>AIが実行できる操作（すべて承認後）</b><span>予定の追加・編集／タスクの追加・更新。AIは提案までで、あなたが確認して押した時だけ登録されます。</span></div></div>
-      <div class="aiSugs">
-        ${L('今日の予定は？',1)}${L('未完了のタスクは？',1)}${L('優先度が高いタスクは？',1)}${L('期限切れのタスクはある？',1)}${L('来週の予定をまとめて',1)}
-        ${L('明日10時に厚木で現場調査',0)}
-      </div>
       <p class="hint">${ready?'ファイル例：「この工程表から電気工事の予定を登録して」「この図面で確認が必要なところをタスクにして」':'添付ファイルの解析や予定・タスクの追加提案を使うには、右上の歯車からAI接続を設定してください。'}</p>
     </div>`;
   }
 
   function renderAll(){
     const host=$q('#aiMsgs');host.innerHTML='';
-    if(!S.conv||!S.conv.messages.length){host.innerHTML=suggestHtml();bindSuggest(host);return}
+    if(!S.conv||!S.conv.messages.length){host.innerHTML=suggestHtml();bindSuggest(host);const st=$q('#aiStage');if(st)AV_().mount(st,{kind:'stage'});return}
     S.conv.messages.forEach(m=>host.appendChild(renderMsg(m)));
-    scrollBottom();
+    placeAv();scrollBottom();
   }
   function bindSuggest(host){
     host.querySelectorAll('.aiSug').forEach(b=>b.onclick=()=>{
@@ -431,13 +468,13 @@
   function addBot(m){
     const host=$q('#aiMsgs');
     if(host.querySelector('.aiWelcome'))host.innerHTML='';
-    pushMsg(m);host.appendChild(renderMsg(m));scrollBottom();return m;
+    pushMsg(m);host.appendChild(renderMsg(m));placeAv();scrollBottom();return m;
   }
   function showThinking(label){
     const host=$q('#aiMsgs'),w=document.createElement('div');
     w.className='aiM bot thinking';
     w.innerHTML=`<div class="aiBub"><span class="aiDots"><i></i><i></i><i></i></span><span class="aiThinkText">${esc(label)}</span><button type="button" class="btn sm" data-cancel>中止</button></div>`;
-    host.appendChild(w);scrollBottom();
+    host.appendChild(w);placeAv();scrollBottom();
     const t0=Date.now(),tx=w.querySelector('.aiThinkText');
     const tick=setInterval(()=>{tx.textContent=`${tx.dataset.base||label}（${Math.round((Date.now()-t0)/1000)}秒）`},1000);
     w.querySelector('[data-cancel]').onclick=()=>{if(S.ctrl)S.ctrl.abort()};
@@ -498,7 +535,7 @@
         userSay(text,[]);inp.value='';grow();scheduleCtx(true);
         const refs=[];if((a.meta.eventKeys||[]).length)refs.push('予定');if((a.meta.taskIds||[]).length)refs.push('タスク');
         const m=addBot({id:mid(),role:'bot',text:a.text,ts:Date.now(),mode:'local',stations:a.meta.stations||[],refs});
-        afterBot(m);return;
+        AV_().flash('local',1800);afterBot(m);return;
       }
     }
 
@@ -554,12 +591,15 @@
     const {text,atts,ctxOpt,userMsg}=req;
     S.busy=true;$q('#aiSend').disabled=true;S.ctrl=new AbortController();
     const think=showThinking(atts.length?'添付を処理しています…':'考えています…');
+    const kinds=atts.map(a=>a.kind||'');
+    AV_().hold('req',atts.length?(kinds.includes('pdf')?'document':kinds.includes('image')?'image':'analyzing'):'thinking');
     const retry=()=>runRemote(req);
     try{
       let built={images:[],texts:[],pdfs:[],stats:{images:0,chars:0,imageBytes:0}};
       if(atts.length){
         built=await Files().buildAll(atts,{onProgress:t=>think.set(t)});
         think.set('AIに送信して解析しています…');
+        AV_().hold('req','analyzing');
       }
       const ctx=buildContext(text,ctxOpt);
       const names=atts.map(a=>a.name);
@@ -590,15 +630,19 @@
       names.forEach(n=>refs.push(n));
       const m=addBot({id:mid(),role:'bot',mode:'remote',provider:data.provider||AI().providerOf(cfg()),model:data.model||'',fallbackFrom:data.fallbackFrom||'',text:String(data.answer),ts:Date.now(),
         stations:meta.stations||[],refs,attachments:userMsg.attachments,actions:acts,sent:sentBits.join('・')});
+      AV_().release('req');
+      if(acts.length)AV_().flash('warning',2600);
+      else{AV_().flash('speaking',1500);setTimeout(()=>{if(!Voice().tts.speakingKey)AV_().flash('smile',1500)},1500)}
       afterBot(m);
     }catch(e){
       think.remove();
+      AV_().release('req');
       if(e&&e.code==='ABORTED'){addBot({id:mid(),role:'bot',error:true,ts:Date.now(),text:'中止しました。',retry});}
       else{
         const fe=e instanceof (Files().FileError)?e.message:errText(e);
         addBot({id:mid(),role:'bot',error:true,ts:Date.now(),text:fe,retry,fixCfg:needsCfg(e)});
       }
-      persist();
+      AV_().flash('error',3200);persist();
     }finally{
       S.busy=false;S.ctrl=null;$q('#aiSend').disabled=false;
     }
@@ -655,13 +699,15 @@
     document.documentElement.classList.add('aiWsOpen');
     document.body.classList.remove('railOpenM','paneOpenM','calSideOpenM');
     renderAll();renderHistory();renderChips();refreshStatus();fitViewport();
+    if(!S.conv.messages.length)AV_().flash('greeting',3000);
+    AV_().prefetchCommon&&AV_().prefetchCommon();
     if(!isPhone())setTimeout(()=>{const i=$q('#aiInput');i&&i.focus()},40);
   }
   function close(){
     if(!S.el)return;
     if(S.recording)Voice().rec.abort();
     Voice().tts.stop();
-    S.el.hidden=true;S.open=false;setHist(false);
+    S.el.hidden=true;S.open=false;setHist(false);AV_().setSpeaking(false);
     document.documentElement.classList.remove('aiWsOpen');
   }
 

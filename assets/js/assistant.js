@@ -422,7 +422,8 @@
     injectStyle();
     const omni=document.getElementById('omniBtn');
     if(omni&&!document.getElementById('aiTopBtn')){
-      const b=document.createElement('button');b.id='aiTopBtn';b.type='button';b.className='btn aiTopBtn';b.innerHTML='<span class="aiDot"></span><span class="aiLbl">AI</span>';b.title='工事管理next AI';b.onclick=openEntry;omni.insertAdjacentElement('afterend',b);
+      const b=document.createElement('button');b.id='aiTopBtn';b.type='button';b.className='btn aiTopBtn';b.innerHTML='<span class="aiTopAv"><img class="kn-icon" alt="" aria-hidden="true" width="28" height="28" src="./assets/avatar/i/idle.webp?v=20261004-av1"></span><span class="aiLbl">AI</span>';b.title='工事管理next AI';b.setAttribute('aria-label','AIアシスタントを開く');b.onclick=openEntry;omni.insertAdjacentElement('afterend',b);
+      if(window.KoujiAvatar)KoujiAvatar.mount(b.querySelector('.aiTopAv'),{kind:'nav'});
     }
     const tab=document.getElementById('tabbar');
     if(tab&&!tab.querySelector('[data-act=ai]')){

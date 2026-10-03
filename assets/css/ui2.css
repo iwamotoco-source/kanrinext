@@ -11,7 +11,7 @@ h1,h2,h3{font-weight:600}
 .btn{height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);transition:background .12s,border-color .12s,transform .06s}
 .btn:hover{background:var(--surface-2);border-color:var(--line-2)}
 .btn:active{transform:scale(.98)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 1px 2px rgba(120,50,20,.25)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 1px 2px rgba(0,40,70,.25)}
 .btn.primary:hover{background:var(--accent);filter:brightness(1.07)}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
 .btn.ghost:hover{background:var(--surface-3);color:var(--ink)}
@@ -20,7 +20,7 @@ h1,h2,h3{font-weight:600}
 .seg{border:0;border-radius:11px;background:var(--surface-3);padding:3px;gap:2px}
 .seg button{height:28px;border:0;border-radius:8px;padding:0 12px;color:var(--ink-2)}
 .seg button:hover{background:transparent;color:var(--ink)}
-.seg button[aria-pressed="true"],[data-theme="dark"] .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(60,40,20,.14)}
+.seg button[aria-pressed="true"],[data-theme="dark"] .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--primary);font-weight:600;box-shadow:0 1px 2px rgba(0,10,30,.28)}
 .input,.field input,.field select,.field textarea{height:38px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);padding:0 12px}
 .field textarea{padding:9px 12px}
 .input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -31,18 +31,18 @@ kbd{border-radius:6px}
 ::-webkit-scrollbar-thumb{background:var(--line-2)}
 
 /* ---------- rail ---------- */
-.rail{background:var(--surface-2);border-right:1px solid var(--line)}
+.rail{background:var(--surface);border-right:1px solid var(--line)}
 .brand{border-bottom:0;padding:0 16px;height:64px}
-.brandMark{width:32px;height:32px;border-radius:10px;font-family:var(--font-serif);font-size:16px;box-shadow:0 1px 2px rgba(120,50,20,.3)}
+.brandMark{width:32px;height:32px;border-radius:10px;font-family:var(--font-serif);font-size:16px;box-shadow:0 1px 2px rgba(0,40,70,.3)}
 .brandName{font-size:16px}
 .railScroll{padding:4px 10px 10px}
 .navGroup+.navGroup{margin-top:18px}
 .navHead{padding:4px 10px;font-size:11.5px;letter-spacing:.04em;color:var(--ink-3)}
 .nav{height:38px;border-radius:10px;padding:0 11px;font-size:14px;color:var(--ink-2);gap:11px}
 .nav:hover{background:var(--surface-3);color:var(--ink)}
-.nav[aria-current="page"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
+.nav[aria-current="page"]{background:var(--accent-soft);color:var(--primary);font-weight:600;box-shadow:inset 0 0 0 1px var(--accent-line)}
 .nav[aria-current="page"]::before{display:none}
-.nav[aria-current="page"] svg.i{color:var(--accent)}
+.nav[aria-current="page"] svg.i{color:var(--primary)}
 .railFoot{border-top:1px solid var(--line);padding:8px 10px 10px}
 
 /* ---------- topbar ---------- */
@@ -51,8 +51,7 @@ kbd{border-radius:6px}
 .omni{height:38px;border-radius:999px;background:var(--surface);border:1px solid var(--line);padding:0 14px;box-shadow:var(--shadow-card)}
 .omni:hover{border-color:var(--line-2)}
 .syncPill{height:32px;border-radius:999px;background:var(--surface);border-color:var(--line)}
-.aiTopBtn{border-radius:999px!important;background:var(--accent-soft)!important;border-color:var(--accent-line)!important;color:var(--accent)!important;height:36px}
-[data-theme="dark"] .aiTopBtn{color:var(--accent)!important}
+.aiTopBtn{border-radius:999px!important;background:var(--accent-soft)!important;border-color:var(--accent-line)!important;color:var(--primary)!important;height:40px;padding:0 14px 0 4px!important;gap:8px;font-weight:700;box-shadow:0 0 16px var(--glow)}
 
 /* ---------- home ---------- */
 .home{padding:6px 24px 36px;gap:18px;max-width:1500px;margin:0 auto}
@@ -79,8 +78,7 @@ kbd{border-radius:6px}
 .qTx{display:flex;flex-direction:column;min-width:0}
 .qTx b{font-size:14.5px;font-weight:600}
 .qTx small{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qAi .qIc{background:var(--accent);color:var(--accent-ink)}
-.qAi{border-color:var(--accent-line);background:linear-gradient(135deg,var(--accent-soft),var(--surface) 70%)}
+
 .panel{border-radius:20px;border:1px solid var(--line);box-shadow:var(--shadow-card)}
 .panelHead{border-bottom:0;padding:16px 18px 8px}
 .panelHead h3{font-size:17px}
@@ -104,14 +102,14 @@ kbd{border-radius:6px}
 .quickAdd{border-bottom:0;padding:4px 14px 12px}
 .taskTabs{background:var(--surface-3);padding:3px;border-radius:11px;gap:2px}
 .taskTabs button{height:26px;border-radius:8px}
-.taskTabs button[aria-pressed="true"],[data-theme="dark"] .taskTabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(60,40,20,.14)}
+.taskTabs button[aria-pressed="true"],[data-theme="dark"] .taskTabs button[aria-pressed="true"]{background:var(--accent-soft);color:var(--primary);font-weight:600;box-shadow:0 1px 2px rgba(0,10,30,.28)}
 .tRow{border-bottom:0;margin:1px 8px;padding:9px 8px 9px 8px;border-radius:12px}
 .tRow:hover{background:var(--surface-2)}
 .tCheck{width:20px;height:20px;border-width:1.6px}
 .tGroup{padding:14px 18px 4px}
 
 /* modals / menus / palette */
-.modal,.palette{border-radius:22px;border:1px solid var(--line);box-shadow:var(--shadow-pop)}
+.modal,.palette{background:var(--surface-elevated);border-radius:22px;border:1px solid var(--line-2);box-shadow:var(--shadow-pop)}
 .mHead{border-bottom:0;padding:18px 20px 8px}
 .mHead h2{font-size:19px}
 .mBody{padding:10px 20px 18px}
@@ -121,20 +119,20 @@ kbd{border-radius:6px}
 .palIn{border-bottom:1px solid var(--line)}
 .palItem{border-radius:10px}
 .toast{border-radius:14px}
-.scrim{background:rgba(40,28,16,.40);backdrop-filter:blur(2px)}
+.scrim{background:rgba(2,6,16,.58);backdrop-filter:blur(2px)}
 .setNav button{border-radius:10px;height:36px}
-.setNav button[aria-current="true"]{background:var(--surface-3);color:var(--ink);font-weight:600}
+.setNav button[aria-current="true"]{background:var(--accent-soft);color:var(--primary);font-weight:600}
 .listEd{border-radius:14px}
 
 /* ---------- calendar ---------- */
-.calSide{background:var(--surface-2);border-right:1px solid var(--line);padding:16px 14px 22px}
+.calSide{background:var(--surface);border-right:1px solid var(--line);padding:16px 14px 22px}
 .calSide .btn.primary{height:40px;border-radius:12px}
 .miniGrid button{border-radius:50%}
 .miniGrid button.inRange{border-radius:8px}
 .miniGrid button.sat{color:var(--sat)}
 .catRow{border-radius:9px;height:32px}
-.calMain{background:var(--surface)}
-.calBar{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 18px;gap:10px}
+.calMain{background:var(--bg)}
+.calBar{background:var(--bg);border-bottom:1px solid var(--line);padding:12px 18px;gap:10px}
 .calRange{font-size:21px}
 .calSearch{height:34px;border-radius:999px;padding:0 12px;border-color:var(--line)}
 .tgHead{border-bottom:1px solid var(--line)}
@@ -149,8 +147,8 @@ kbd{border-radius:6px}
 .tgDay .hl{margin-left:0}
 .tgAll{border-bottom:1px solid var(--line)}
 .tgCol{border-left:1px solid var(--line)}
-.tgCol.today{background-color:color-mix(in srgb,var(--accent-soft) 40%,transparent)}
-.ev{border-radius:9px;padding:4px 8px 3px 10px;border:0;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface));box-shadow:0 1px 2px rgba(60,40,20,.08)}
+.tgCol.today{background-color:color-mix(in srgb,var(--accent-soft) 55%,transparent)}
+.ev{border-radius:9px;padding:4px 8px 3px 10px;border:0;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface));box-shadow:0 1px 2px rgba(0,10,30,.25)}
 [data-theme="dark"] .ev{background:color-mix(in srgb,var(--c) 28%,var(--surface))}
 .ev.free{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
 .ev.task{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
@@ -175,15 +173,15 @@ kbd{border-radius:6px}
 
 /* ---------- AI workspace ---------- */
 .aiWs{background:var(--bg)}
-.aiWsSide{background:var(--surface-2);border-right:1px solid var(--line)}
+.aiWsSide{background:var(--surface);border-right:1px solid var(--line)}
 .aiSideHead{border-bottom:0;padding:16px 14px 10px}
 .aiSideHead b{font-family:var(--font-serif);font-size:15px}
 .aiHistRow{border-radius:10px}
-.aiHistRow.cur{background:var(--surface);box-shadow:var(--shadow-card)}
+.aiHistRow.cur{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
 .aiHistRow:hover{background:var(--surface-3)}
 .aiSideFoot{border-top:1px solid var(--line)}
 .aiWsHead{background:transparent;border-bottom:0;padding-bottom:6px}
-.aiMark{border-radius:50%;background:var(--accent);box-shadow:0 1px 3px rgba(120,50,20,.35);font-family:var(--font-serif);font-weight:700}
+.aiMark{border-radius:50%;background:var(--surface-elevated);border:1px solid var(--accent-line);box-shadow:0 0 14px var(--glow);overflow:hidden;padding:0;width:44px;height:44px}
 .aiWsTitle h2{font-size:16px}
 .aiWsInner{max-width:780px;padding:22px 18px 14px;gap:20px}
 .aiWelcome h3{font-size:25px;line-height:1.35;margin:10px 0 10px}
@@ -193,7 +191,7 @@ kbd{border-radius:6px}
 .aiSug:hover{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent)}
 /* 会話: ユーザーは淡い吹き出し、AIは地の文のまま読ませる */
 .aiBub{border-radius:18px;padding:11px 16px;line-height:1.85;font-size:14.5px}
-.aiM.user .aiBub{background:var(--surface-3);border-color:transparent;color:var(--ink);border-bottom-right-radius:6px}
+.aiM.user .aiBub{background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--ink);border-bottom-right-radius:6px}
 .aiM.bot .aiBub{background:transparent;border-color:transparent;padding:2px 2px;max-width:min(100%,720px)}
 .aiM.err .aiBub{background:color-mix(in srgb,var(--danger) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--danger) 45%,var(--line));padding:11px 16px}
 .aiM.thinking .aiBub{padding:6px 2px}
@@ -213,17 +211,17 @@ kbd{border-radius:6px}
 .aiWs.kbOpen .aiWsComposer{padding-bottom:10px}
 .aiPill{height:30px;border-radius:999px;background:var(--surface)}
 .aiPill.on{background:var(--accent-soft)}
-.aiInRow{background:var(--surface);border:1px solid var(--line-2);border-radius:28px;padding:6px 6px 6px 10px;gap:4px;box-shadow:var(--shadow-card);align-items:flex-end}
-.aiInRow:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-card)}
+.aiInRow{background:var(--surface-elevated);border:1px solid var(--line-2);border-radius:28px;padding:6px 6px 6px 10px;gap:4px;box-shadow:var(--shadow-card);align-items:flex-end}
+.aiInRow:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),0 0 22px var(--glow),var(--shadow-card)}
 .aiInRow textarea,.aiInRow textarea:focus{border:0;background:transparent;box-shadow:none;border-radius:0;padding:10px 8px;min-height:42px}
 .aiRound{border-radius:50%;width:40px;height:40px;flex-basis:40px}
 .aiRound.btn:not(.primary){border-color:transparent;background:transparent;color:var(--ink-2)}
 .aiRound.btn:not(.primary):hover{background:var(--surface-3)}
-.aiRound.primary{box-shadow:0 1px 2px rgba(120,50,20,.35)}
+.aiRound.primary{box-shadow:0 1px 2px rgba(0,40,70,.35)}
 .aiDest{border-color:var(--line);background:var(--surface-3);padding:2px;border-radius:999px}
 .aiDest button{border-radius:999px}
-.aiDest button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(60,40,20,.14)}
-.aiDest button[data-dest=local].on{background:var(--surface);color:var(--ok)}
+.aiDest button.on{background:var(--accent-soft);color:var(--primary);box-shadow:0 1px 2px rgba(0,10,30,.28)}
+.aiDest button[data-dest=local].on{background:color-mix(in srgb,var(--ok) 16%,var(--surface));color:var(--ok)}
 .aiDest button[data-dest=remote].on,.aiDest button[data-dest=gemini].on{color:var(--accent)}
 .aiDrop{border-radius:22px}
 
@@ -251,7 +249,7 @@ kbd{border-radius:6px}
   .modal,.palette{border-radius:0}
   .mHead{padding:14px 16px 6px}
   /* 下タブ: 画面下に浮かぶカプセル */
-  .tabbar{left:12px;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));height:62px!important;padding:6px;border:1px solid var(--line);border-radius:26px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow-pop);gap:2px}
+  .tabbar{left:12px;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));height:62px!important;padding:6px;border:1px solid var(--line-2);border-radius:26px;background:color-mix(in srgb,var(--surface-elevated) 94%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow-pop);gap:2px}
   .tabbar button{border-radius:20px;gap:2px;color:var(--ink-3);font-size:10.5px!important}
   .tabbar button[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
   .tabbar svg{width:21px!important;height:21px!important}
@@ -293,4 +291,123 @@ kbd{border-radius:6px}
   .aiCaps>div{padding:11px 13px}
   .aiCaps span{font-size:12.5px}
   .aiWelcome h3{font-size:21px}
+}
+
+/* =========================================================
+   紺×水色 / AIアバター / 導線整理（2026-10-04）
+   ========================================================= */
+.mOnly{display:none!important}
+/* 重複導線の整理: タスクは「サイドバーのタスク／下タブ」、ツールは「サイドバー／下タブ」だけ */
+#paneBtn,#railCollapseBtn{display:none!important}
+#homeNewEvent,.panelHead a[href="#calendar"]{display:none!important}
+.brandMark{background:linear-gradient(135deg,var(--primary),#1a63d6);color:var(--primary-ink)}
+.btn.primary{box-shadow:0 0 0 1px var(--accent-line) inset,0 2px 10px -2px var(--glow)}
+.panel,.qTile,.omni,.syncPill,.wxNow,.wxStrip{background:var(--surface)}
+.pop,.toast,.palette{background:var(--surface-elevated)}
+.aiBadge.remote{color:var(--primary)}
+
+/* ----- AvatarController 共通 ----- */
+.kn-stage{position:relative;aspect-ratio:1;width:100%;isolation:isolate;transform-origin:50% 80%;animation:kn-breathe 4.2s ease-in-out infinite}
+.kn-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none}
+.kn-stage img[hidden]{display:none}
+.kn-stage .kn-ov{z-index:2}
+.kn-stage[data-state=thinking]{animation:kn-think 4s ease-in-out infinite}
+.kn-stage[data-state=success],.kn-stage[data-state=celebrate]{animation:kn-hop .45s ease-out 1}
+@keyframes kn-breathe{50%{transform:translateY(-2px)}}
+@keyframes kn-think{50%{transform:translateY(-1px) rotate(.4deg)}}
+@keyframes kn-hop{40%{transform:translateY(-6px)}70%{transform:translateY(1px)}}
+img.kn-icon{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+@media (prefers-reduced-motion:reduce){.kn-stage,.tabAiOrb::before,.knWave i,.aiTopAv::before{animation:none!important}}
+
+/* ホームのAIカード */
+.quickRow{grid-template-columns:2.2fr 1fr 1fr!important}
+.aiBrief{display:flex;align-items:center;gap:14px;text-align:left;padding:12px 16px 12px 12px;border-radius:18px;min-width:0;background:linear-gradient(120deg,var(--accent-soft),var(--surface) 78%);border:1px solid var(--accent-line);box-shadow:0 0 22px var(--glow),var(--shadow-card);transition:transform .08s}
+.aiBrief:active{transform:scale(.99)}
+.aiBriefAv{width:56px;height:56px;border-radius:50%;flex:0 0 56px;overflow:hidden;background:var(--surface-elevated);border:1.5px solid var(--primary);box-shadow:0 0 14px var(--glow)}
+.aiBriefTx{display:flex;flex-direction:column;min-width:0;flex:1}
+.aiBriefTx b{font-size:14.5px;font-weight:600;line-height:1.5}
+.aiBriefTx small{font-size:12px;color:var(--text-muted)}
+.aiBriefGo{color:var(--primary);width:20px;height:20px}
+.qIc{background:var(--surface-3);color:var(--primary)}
+.qTile:hover{border-color:var(--accent-line)}
+
+/* トップバーのAIボタン（PC） */
+.aiTopAv{position:relative;width:32px;height:32px;border-radius:50%;overflow:hidden;flex:0 0 32px;background:var(--surface-elevated);border:1px solid var(--accent-line)}
+.aiTopBtn[data-av] .aiTopAv,.aiTopAv[data-av=thinking],.aiTopAv[data-av=analyzing]{box-shadow:0 0 0 2px var(--glow)}
+
+/* ----- AI Workspace ----- */
+.aiLive{display:inline-block;vertical-align:middle;margin-left:6px;font-family:var(--font);font-size:11px;font-weight:600;border-radius:999px;padding:1px 9px;border:1px solid var(--accent-line);color:var(--primary);background:var(--accent-soft);letter-spacing:.02em}
+.aiLive[data-k=busy]{box-shadow:0 0 10px var(--glow)}
+.aiLive[data-k=err]{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 55%,var(--line));background:color-mix(in srgb,var(--danger) 12%,var(--surface))}
+.aiLive[data-k=warn]{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 55%,var(--line));background:color-mix(in srgb,var(--warning) 12%,var(--surface))}
+.aiLive[data-k=local],.aiLive[data-k=ok]{color:var(--success);border-color:color-mix(in srgb,var(--success) 50%,var(--line));background:color-mix(in srgb,var(--success) 12%,var(--surface))}
+.aiHero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:4px 0 6px}
+.aiStage{width:min(280px,62vw);margin:0 auto -6px;filter:drop-shadow(0 8px 24px var(--glow))}
+.aiWelcome h3{font-size:19px;line-height:1.5;margin:6px 0 4px;max-width:30em}
+.aiWelcome .aiHero .hint{max-width:34em}
+.aiWelcome .aiSugs{justify-content:center}
+.aiM.hasAv{position:relative;padding-left:50px}
+.aiMsgAv{position:absolute;left:0;top:2px;width:38px;height:38px;border-radius:50%;overflow:hidden;background:var(--surface-elevated);border:1.5px solid var(--accent-line);box-shadow:0 0 12px var(--glow)}
+.aiM.thinking.hasAv .aiMsgAv{border-color:var(--primary)}
+.aiBadge.local{color:var(--success)}
+
+/* ----- テスト用パネル ?avatar=test ----- */
+.knTest{position:fixed;right:12px;bottom:12px;z-index:5000;width:min(360px,calc(100vw - 24px));max-height:88dvh;overflow:auto;background:var(--surface-elevated);border:1px solid var(--line-2);border-radius:16px;box-shadow:var(--shadow-pop);padding:10px}
+.knTestHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.knTestStage{width:200px;margin:0 auto}
+.knTestBtns{display:flex;flex-wrap:wrap;gap:4px}
+.knTestBtns button,.knTestHead button{font-size:12px;padding:5px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface-2)}
+.knTestOut{font-size:11px;color:var(--text-muted);margin-top:6px;word-break:break-all}
+
+/* ----- 下部ナビ（スマホ）: ホーム / 予定 / AI(中央) / タスク / ツール ----- */
+.tabbar button{min-height:48px}
+.tabAi{position:relative;overflow:visible}
+.tabAiOrb{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:66px;height:66px;border-radius:50%;background:var(--surface-elevated);border:2px solid var(--primary);box-shadow:0 0 0 5px color-mix(in srgb,var(--bg) 92%,transparent),0 0 20px var(--glow);overflow:visible;transition:border-color .2s,box-shadow .2s}
+.tabAiOrb img.kn-icon{border-radius:50%;position:relative;z-index:1}
+.tabAiOrb::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--primary);border-right-color:var(--primary);opacity:0;z-index:2}
+.tabAiOrb[data-av=thinking]::before,.tabAiOrb[data-av=analyzing]::before,.tabAiOrb[data-av=document]::before,.tabAiOrb[data-av=image]::before{opacity:1;animation:knSpin 1s linear infinite}
+.tabAiOrb[data-av=success],.tabAiOrb[data-av=celebrate]{border-color:var(--success);box-shadow:0 0 0 5px color-mix(in srgb,var(--bg) 92%,transparent),0 0 22px color-mix(in srgb,var(--success) 55%,transparent)}
+.tabAiOrb[data-av=error]{border-color:var(--danger);box-shadow:0 0 0 5px color-mix(in srgb,var(--bg) 92%,transparent),0 0 22px color-mix(in srgb,var(--danger) 55%,transparent)}
+.tabAiOrb[data-av=warning]{border-color:var(--warning)}
+@keyframes knSpin{to{transform:rotate(360deg)}}
+.knWave{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:none;gap:3px;align-items:flex-end;height:16px;z-index:3;padding:2px 6px;border-radius:999px;background:color-mix(in srgb,var(--bg) 78%,transparent)}
+.knWave i{width:3px;height:6px;border-radius:2px;background:var(--primary);animation:knWave .9s ease-in-out infinite}
+.knWave i:nth-child(2){animation-delay:.12s}.knWave i:nth-child(3){animation-delay:.24s}.knWave i:nth-child(4){animation-delay:.36s}.knWave i:nth-child(5){animation-delay:.48s}
+@keyframes knWave{50%{height:14px}}
+.tabAiOrb[data-av=listening] .knWave,.tabAiOrb[data-av=voice] .knWave{display:flex}
+.tabAiLbl{margin-top:34px;font-size:10.5px;font-weight:700;color:var(--primary)}
+.tabAi span.tabAiOrb{display:block}
+
+@media (max-width:820px){
+  .mOnly{display:inline-flex!important}
+  .dOnly,#aiTopBtn{display:none!important}
+  .tabbar{display:grid!important;grid-template-columns:1fr 1fr 1.15fr 1fr 1fr;align-items:center;overflow:visible}
+  .tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .tabbar button span:not(.tabAiOrb){font-size:10.5px}
+  .tabbar button[aria-current="page"]{background:var(--accent-soft);color:var(--primary)}
+  /* ツール一覧（左ドロワー）は「ツール」専用: ホーム/予定/タスクは下タブにあるので出さない */
+  .rail .navGroup:first-child .nav:not([data-route="map"]){display:none}
+  .rail .railFoot{display:none}
+  .rail .brand{border-bottom:1px solid var(--line)}
+  .quickRow{grid-template-columns:1fr 1fr!important}
+  .aiBrief{grid-column:1/-1}
+  .qTile{flex-direction:row!important;align-items:center!important;gap:10px!important;padding:11px 12px!important}
+  .qTx small{display:block!important;font-size:11px}
+  .qTx b{font-size:13.5px!important}
+  .home{padding-top:6px!important}
+  .aiStage{width:min(230px,58vw)}
+  .aiWelcome h3{font-size:17px}
+}
+@media (max-width:360px){.qTx small{display:none!important}}
+
+/* 微調整 */
+.aiStage{width:min(280px,62vw,34dvh)}
+.tabAi{justify-content:flex-end!important;padding-bottom:3px}
+.tabAiLbl{margin-top:0!important}
+.tabAiOrb{top:-40px}
+.aiBriefTx b{font-size:14px}
+@media (max-width:820px){
+  .aiWsTitle h2{overflow:visible;white-space:normal;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}
+  .aiWsTitle .hint{display:none}
+  .aiLive{margin-left:0}
 }
