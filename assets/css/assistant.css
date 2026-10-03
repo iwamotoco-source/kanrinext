@@ -221,3 +221,5 @@ html.aiWsOpen body{overscroll-behavior:none}
 .aiToday{list-style:none;margin:12px auto 4px;padding:10px 14px;max-width:520px;border:1px solid var(--line);border-radius:12px;background:var(--surface-elevated,var(--panel,transparent));font-size:13px;line-height:1.9;text-align:left}
 .aiToday li.warn{color:#b3541e}
 [data-theme="dark"] .aiToday li.warn{color:#ffb27a}
+
+.apType.apFo{background:#6b7a8d;color:#fff}

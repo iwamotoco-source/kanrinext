@@ -52,7 +52,7 @@
   const ACT_VERB=/(追加|登録|入れて|いれて|作って|作成|にして|にしといて|変更|更新|編集|変えて|移動|ずらして|延期|完了にして|消して|削除|リマインド|メモして|メモを|設定して|予約|取って)/;
   const QUESTION=/[?？]|(ですか|ますか|でしょうか|かな|教えて|知りたい|見せて|まとめて|一覧|何件|何軒|何回|いくつ|どこ|いつ|何が|あるか|ありますか|提案|考えて|整理|分析|チェック|調べて|見て|確認して|比較|相談|アドバイス)/;
   /* 操作の言い回しは多様なので、語の網は広く取り、迷ったら外部AIの解釈に任せる（端末内は「完全に理解できた質問」だけ） */
-  const ACT_WIDE=/(終わ[っりる]|済ん|済み|片付|やっと[いきけ]|なくな|無くな|中止|キャンセル|取り消|取りやめ|取りやめ|やめ[たる]|ずれ|延び|延ば|後ろ倒|前倒|遅ら|遅れ|早め|繰り上|繰り下|入れ替|組んで|組み直|直して|なおして|全部|すべて|一括|まとめて(?:消|完了|削除)|雨で|変わった|変わりました|になった|になりました|にします|にする|にしたい|したい|しといて|おいて|お願い|頼む|頼みます|ください)/;
+  const ACT_WIDE=/(終わ[っりる]|済ん|済み|片付|やっと[いきけ]|なくな|無くな|中止|キャンセル|取り消|取りやめ|取りやめ|やめ[たる]|ずれ|延び|延ば|後ろ倒|前倒|遅ら|遅れ|早め|繰り上|繰り下|入れ替|組んで|組み直|直して|なおして|全部|すべて|一括|まとめて(?:消|完了|削除)|雨で|変わった|変わりました|になった|になりました|にします|にする|にしたい|したい|しといて|おいて|お願い|頼む|頼みます|ください|開いて|開け|開く|開き|ひらいて|出して|見せて(?=.*(?:フォルダ|資料|ファイル))|フォルダ)/;
   function looksLikeAction(q){
     if(ACT_VERB.test(q))return true;
     if(ACT_WIDE.test(q)&&!(/[?？]\s*$/.test(q)&&!/(して|ください|お願い|したい)/.test(q)))return true;
@@ -597,6 +597,14 @@
         if(a){
           const refs=[];if((a.meta.eventKeys||[]).length)refs.push('予定');if((a.meta.taskIds||[]).length)refs.push('タスク');
           afterBot(addBot({id:mid(),role:'bot',text:a.text,ts:Date.now(),mode:'local',stations:a.meta.stations||[],refs}));return;
+        }
+      }
+      if(!withFiles&&/フォルダ|資料|ファイル/.test(text)&&c.actionsEnabled!==false){
+        /* 外部AIが無くても、駅名＋フォルダの依頼は端末内で「開く候補」にできる */
+        const hit=STATIONS.filter(x=>text.includes(x.name)).sort((p,q)=>q.name.length-p.name.length).filter((x,i,a)=>!a.slice(0,i).some(y=>y.name.includes(x.name)));
+        if(hit.length){
+          const acts=Act().normalize(hit.slice(0,5).map(x=>({type:'folder.open',title:'',station:x.name,note:/現行/.test(text)?'現行案件':null,guess:false,reason:''})));
+          afterBot(addBot({id:mid(),role:'bot',mode:'local',text:'フォルダを開く候補です。ボタンを押すと開きます。',ts:Date.now(),actions:acts}));return;
         }
       }
       if(!withFiles&&looksLikeAction(text)&&c.actionsEnabled!==false){

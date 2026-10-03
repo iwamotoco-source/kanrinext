@@ -9,11 +9,11 @@
    ========================================================= */
 'use strict';
 (function(){
-  const LABEL={'event.add':'予定を追加','event.update':'予定を更新','task.add':'タスクを追加','task.update':'タスクを更新','event.delete':'予定を削除','task.delete':'タスクを削除'};
+  const LABEL={'event.add':'予定を追加','event.update':'予定を更新','task.add':'タスクを追加','task.update':'タスクを更新','event.delete':'予定を削除','task.delete':'タスクを削除','folder.open':'フォルダを開く'};
   const isoOk=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&iso(parseISO(s))===s;
   const timeOk=s=>typeof s==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
   const s1=(v,n)=>v===null||v===undefined?'':String(v).trim().slice(0,n);
-  const isEvent=t=>t.startsWith('event.'),isUpdate=t=>t.endsWith('.update'),isDelete=t=>t.endsWith('.delete'),needsTarget=t=>isUpdate(t)||isDelete(t);
+  const isEvent=t=>t.startsWith('event.'),isUpdate=t=>t.endsWith('.update'),isDelete=t=>t.endsWith('.delete'),isFolder=t=>t==='folder.open',needsTarget=t=>isUpdate(t)||isDelete(t);
   let seq=0;
 
   function workCategory(){return (state.categories.find(c=>c.id==='work')||state.categories[0]).id}
@@ -35,6 +35,15 @@
   function validate(p){
     const f=p.fields,w=[];p.warnings=w;p.invalid='';p.dup=false;
     const upd=isUpdate(p.type),del=isDelete(p.type),ev=isEvent(p.type);
+    if(isFolder(p.type)){
+      const st=findStation(f.station);
+      if(!st){p.invalid=f.station?`「${f.station}」は小田急の駅名に一致しません`:'どの駅のフォルダか分かりません';return p}
+      f.station=st.name;if(!f.title)f.title=`${st.name}駅のフォルダ`;
+      p.folderId=(/現行/.test(f.note||'')?st.current:'')||st.folderId;
+      if(/現行/.test(f.note||'')&&!st.current){p.invalid=`${st.name}に現行案件のフォルダはありません`;return p}
+      if(typeof isWindowsDesktop==='function'&&!isWindowsDesktop())p.invalid='フォルダはWindowsパソコンでのみ開けます（この端末では開けません）';
+      return p;
+    }
     if(upd||del){
       const list=ev?state.events:state.tasks;
       const target=list.find(x=>String(x.id)===String(p.targetId));
@@ -91,11 +100,12 @@
         allDay:a.allDay===true?true:(a.allDay===false?false:null),station:s1(a.station,40),location:s1(a.location,200),note:s1(a.note,1000),
         priority:s1(a.priority,6),done:typeof a.done==='boolean'?a.done:null,time:''};
       if(!ev){f.time=f.start;f.start='';f.end='';f.endDate='';f.location=''}
+      if(isFolder(a.type)){f.date='';f.endDate='';f.start='';f.end='';f.time='';f.location=''}
       if(isDelete(a.type)){f.date='';f.endDate='';f.start='';f.end='';f.time=''}
       const p={pid:'p'+Date.now().toString(36)+(++seq),type:a.type,targetId:s1(a.targetId,80),fields:f,guess:!!a.guess,reason:s1(a.reason,300),
         status:'pending',checked:true,warnings:[],invalid:'',dup:false,before:null};
       validate(p);
-      if(p.invalid||p.dup)p.checked=false;
+      if(p.invalid||p.dup||isFolder(p.type))p.checked=false;
       out.push(p);
     });
     return out;
@@ -129,6 +139,7 @@
       if(f.station)e.station=f.station;if(f.location)e.location=f.location;if(f.note)e.note=f.note;
       return e.id;
     }
+    if(p.type==='folder.open'){openLocalFolder(p.folderId);return p.folderId}
     if(p.type==='event.delete'){
       const e=state.events.find(x=>String(x.id)===String(p.targetId));if(!e)throw new Error('対象が見つかりません');
       if(e.recur)throw new Error('繰り返し予定は削除できません');
@@ -212,27 +223,28 @@
   }
 
   function cardHtml(p){
-    const f=p.fields,upd=isUpdate(p.type),del=isDelete(p.type),ev=isEvent(p.type);
-    const done=p.status==='applied',gone=p.status==='dismissed';
+    const f=p.fields,upd=isUpdate(p.type),del=isDelete(p.type),fo=isFolder(p.type),ev=isEvent(p.type);
+    const done=p.status==='applied'&&!fo,gone=p.status==='dismissed';
     const st=f.station?stChip(f.station):'';
     const badges=[
-      `<span class="apType ${del?'apDel':ev?'apEv':'apTk'}">${esc(LABEL[p.type])}</span>`,
+      `<span class="apType ${del?'apDel':fo?'apFo':ev?'apEv':'apTk'}">${esc(LABEL[p.type])}</span>`,
       p.guess?'<span class="apBadge guess" title="資料から断定できず、AIが推測した項目を含みます">推測</span>':'',
       p.dup?'<span class="apBadge dup" title="同じ日付・同名の予定/タスクが既にあります">重複の可能性</span>':'',
       done?`<span class="apBadge ok">${del?'削除済み':'追加済み'}</span>`:'',gone?'<span class="apBadge off">却下</span>':''
     ].join('');
     const title=(upd||del)?(del?(p.targetTitle||f.title):(f.title||p.targetTitle||'')):f.title;
     const b0=p.before||{};
-    const body=del?`<div class="apMeta">${esc(ev?(b0.date?dateText({date:b0.date,endDate:b0.endDate})+'　'+(b0.allDay||!b0.start?'終日':b0.start+(b0.end?'–'+b0.end:'')):''):(b0.date?'期日 '+dateText({date:b0.date}):'期日なし'))}${b0.location?' ／ '+esc(b0.location):''}</div><div class="apDelNote">登録から削除されます（実行後に「元に戻す」で復元できます）</div>`:upd?`<div class="apDiff">${diffLines(p).map(x=>`<div>${x}</div>`).join('')||'<div class="hint">変更なし</div>'}</div>`
+    const body=fo?`<div class="apMeta">${st}${/現行/.test(f.note||'')?' 現行案件フォルダ':' 駅フォルダ'}</div>`:del?`<div class="apMeta">${esc(ev?(b0.date?dateText({date:b0.date,endDate:b0.endDate})+'　'+(b0.allDay||!b0.start?'終日':b0.start+(b0.end?'–'+b0.end:'')):''):(b0.date?'期日 '+dateText({date:b0.date}):'期日なし'))}${b0.location?' ／ '+esc(b0.location):''}</div><div class="apDelNote">登録から削除されます（実行後に「元に戻す」で復元できます）</div>`:upd?`<div class="apDiff">${diffLines(p).map(x=>`<div>${x}</div>`).join('')||'<div class="hint">変更なし</div>'}</div>`
       :`<div class="apMeta">${esc(lineOf(p))}${st?` ${st}`:''}${f.location?` <span class="apLoc">${icon('pin','i','width:13px;height:13px;vertical-align:-2px')}${esc(f.location)}</span>`:''}</div>`;
     const warn=p.warnings.map(x=>`<div class="apWarn">${esc(x)}</div>`).join('');
     const reason=p.guess&&p.reason?`<div class="apReason">推測の根拠：${esc(p.reason)}</div>`:'';
     const note=!upd&&f.note?`<div class="apNote">${esc(f.note).replace(/\n/g,'<br>')}</div>`:'';
     const bad=p.invalid?`<div class="apErr">${esc(p.invalid)}</div>`:'';
-    const canCheck=p.status==='pending'&&!p.invalid;
+    const canCheck=p.status==='pending'&&!p.invalid&&!fo;
     return `<div class="apHead">
-        <label class="apCheck"><input type="checkbox" data-ck ${p.checked&&canCheck?'checked':''} ${canCheck?'':'disabled'} aria-label="この候補を選択"></label>
+        <label class="apCheck" ${fo?'hidden':''}><input type="checkbox" data-ck ${p.checked&&canCheck?'checked':''} ${canCheck?'':'disabled'} aria-label="この候補を選択"></label>
         <div class="apMain"><div class="apTitle">${badges}<b>${esc(title)}</b></div>${body}${note}${reason}${warn}${bad}</div>
+        ${fo&&!p.invalid&&p.status!=='dismissed'?`<button class="btn sm primary" type="button" data-open>${p.status==='applied'?'もう一度開く':'フォルダを開く'}</button>`:''}
         ${canCheck&&!upd&&!del?`<button class="btn sm ghost" type="button" data-edit>${p._edit?'閉じる':'編集'}</button>`:''}
       </div>${p._edit?editHtml(p):''}`;
   }
@@ -254,7 +266,7 @@
     if(!list.length)return;
     const box=document.createElement('div');box.className='apBox';
     const draw=()=>{
-      const pending=list.filter(p=>p.status==='pending');
+      const pending=list.filter(p=>p.status==='pending'&&!isFolder(p.type));
       const sel=pending.filter(p=>p.checked&&!p.invalid);
       const lab=summaryLabel(list);
       box.innerHTML=`<div class="apBoxHead"><b>操作候補 ${list.length}件</b><span class="hint">内容を確認し、チェックした候補だけが実行されます（AIは勝手に登録しません）</span></div>
@@ -265,6 +277,8 @@
       box.querySelectorAll('.apCard').forEach(el=>{
         const p=list.find(x=>x.pid===el.dataset.pid);if(!p)return;
         const ck=el.querySelector('[data-ck]');ck&&(ck.onchange=()=>{p.checked=ck.checked;draw()});
+        const op=el.querySelector('[data-open]');
+        op&&(op.onclick=()=>{try{applyOne(p);p.status='applied';draw();hooks.onChange&&hooks.onChange(list);try{window.KoujiAvatar&&KoujiAvatar.flash('success',1500)}catch(e){}}catch(err){toast('フォルダを開けませんでした')}});
         const ed=el.querySelector('[data-edit]');ed&&(ed.onclick=()=>{p._edit=!p._edit;draw()});
         el.querySelectorAll('.apEdit [data-f]').forEach(inp=>inp.onchange=()=>{
           p.fields[inp.dataset.f]=inp.value;validate(p);
