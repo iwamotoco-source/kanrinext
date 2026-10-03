@@ -4,3 +4,6 @@
 .dev.vars
 .vercel/
 node_modules/
+
+mock.log
+*.log
