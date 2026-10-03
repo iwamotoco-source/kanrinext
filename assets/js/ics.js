@@ -3,4 +3,9 @@
 (function(){
   var m=document.createElement('link');m.rel='stylesheet';m.href='./assets/css/mobile.css';document.head.appendChild(m);
 })();
-document.write('<script src="./assets/js/ics-original.js"><\/script><script src="./assets/js/crypto-sync.js"><\/script><script src="./assets/js/tool-cable-route.js"><\/script><script src="./assets/js/mobile-fixes.js"><\/script><script src="./assets/js/assistant.js"><\/script><script src="./assets/js/assistant-transport-fix.js"><\/script>');
+(function(){
+  /* ?v= で版を固定し、iPhone Safari/PWA が古いJSをHTTPキャッシュから使い続けないようにする */
+  var V='20261003-ai3';
+  var files=['ics-original.js','crypto-sync.js','tool-cable-route.js','mobile-fixes.js','assistant.js'];
+  document.write(files.map(function(f){return '<script src="./assets/js/'+f+'?v='+V+'"><\/script>'}).join(''));
+})();

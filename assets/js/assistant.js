@@ -5,14 +5,43 @@
    ========================================================= */
 'use strict';
 (function(){
-  const AI_DEFAULT={enabled:false,endpoint:'',sendNotes:false,preferLocal:true};
+  const AI_ENDPOINT_DEFAULT='https://kanrinext.vercel.app/api/ai';
+  const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true};
   let history=[];
 
+  /* 設定は localCfg.ai（localStorage: koujiNextLocalConfigV1）だけに保存する。
+     localCfg は core.js の top-level let（window.localCfg ではない）なので、同じグローバル字句スコープから直接参照する。 */
   const aiCfg=()=>Object.assign({},AI_DEFAULT,localCfg.ai||{});
   function saveAiCfg(v){
     localCfg.ai=Object.assign({},aiCfg(),v||{});
     saveLocal();
   }
+  /* iOSコピーで混入する空白・改行・ゼロ幅文字・引用符を除去（サーバー側と同じ規則） */
+  function cleanKey(v){return String(v||'').replace(/[\s\u200B-\u200D\u2060\uFEFF]+/g,'').replace(/^["'`]+|["'`]+$/g,'')}
+  /* URL正規化: 前後空白・?key=・末尾スラッシュを除去（末尾/はVercelのリダイレクトでCORSが失敗するため） */
+  function normEndpoint(v){
+    const raw=String(v||'').trim();
+    if(!raw)return {url:'',key:''};
+    try{
+      const u=new URL(raw,location.href);
+      const key=cleanKey(u.searchParams.get('key'));
+      u.searchParams.delete('key');u.hash='';
+      u.pathname=u.pathname.replace(/\/+$/,'')||'/';
+      return {url:u.toString().replace(/\?$/,''),key};
+    }catch(e){return {url:raw,key:''}}
+  }
+  /* 旧形式（URLに ?key= を含める／別スクリプトが保存したキー）を一度だけ移行 */
+  function migrateAiCfg(){
+    try{
+      if(!localCfg||!localCfg.ai)return;
+      const ai=localCfg.ai,n=normEndpoint(ai.endpoint);let changed=false;
+      if(ai.endpoint&&n.url!==ai.endpoint){ai.endpoint=n.url;changed=true}
+      if(n.key&&!ai.accessKey){ai.accessKey=n.key;changed=true}
+      if(ai.accessKey&&cleanKey(ai.accessKey)!==ai.accessKey){ai.accessKey=cleanKey(ai.accessKey);changed=true}
+      if(changed)saveLocal();
+    }catch(e){}
+  }
+
   function jaDate(s){return s?fmtYMDW(s):''}
   function priText(p){return p==='high'?'高':p==='mid'?'やや高':'通常'}
   function normText(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ')}
@@ -142,14 +171,75 @@
     return {today:todayISO(),tasks,events};
   }
 
+  class AiError extends Error{constructor(msg,code,stage){super(msg);this.code=code||'';this.stage=stage||''}}
+
+  /* フロント → Vercel の唯一の送信口。X-App-Key はここで明示的に付ける（グローバルfetchは書き換えない）。 */
+  async function postAi(cfg,body){
+    const {url}=normEndpoint(cfg.endpoint),key=cleanKey(cfg.accessKey);
+    if(!url)throw new AiError('AIプロキシURLが未設定です','NO_ENDPOINT','config');
+    if(!key)throw new AiError('AIアクセスキーが未入力です','ACCESS_KEY_MISSING','config');
+    let r;
+    try{
+      r=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',
+        headers:{'Content-Type':'application/json','X-App-Key':key},body:JSON.stringify(body)});
+    }catch(e){throw new AiError('Vercel APIへ接続できません（通信・CORS）','NETWORK','network')}
+    let data={};try{data=await r.json()}catch(e){}
+    if(!r.ok)throw new AiError(data.error||`AI ${r.status}`,data.code||`HTTP_${r.status}`,'server');
+    return data;
+  }
+
   async function remoteAnswer(query){
     const cfg=aiCfg();
     if(!cfg.enabled||!cfg.endpoint)throw new Error('AI接続先が未設定です');
-    const r=await fetch(cfg.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,context:compactContext()})});
-    let data={};try{data=await r.json()}catch(e){}
-    if(!r.ok)throw new Error(data.error||`AI ${r.status}`);
+    const data=await postAi(cfg,{query,context:compactContext()});
     if(!data.answer)throw new Error('AIから回答を取得できませんでした');
     return answer('remote',String(data.answer),data.meta||{});
+  }
+
+  function modelLabel(m){
+    const p=String(m||'').split('-');
+    if(p[0].toLowerCase()!=='gpt'||p.length<2)return String(m||'');
+    return ['GPT-'+p[1],...p.slice(2).map(x=>x.charAt(0).toUpperCase()+x.slice(1))].join(' ');
+  }
+
+  /* 段階的な接続テスト。保存済み設定は一切書き換えず、画面の入力値だけで検査する。 */
+  async function testConnection(cfg,report){
+    const step=(label,state,detail)=>report({label,state,detail});
+    const {url}=normEndpoint(cfg.endpoint),key=cleanKey(cfg.accessKey);
+    if(!url){step('AIプロキシURL','ng','URLが未入力です');return {ok:false,summary:'AIプロキシURLが未設定です'}}
+    if(!key){step('AIアクセスキー','ng','未入力です');return {ok:false,summary:'AIアクセスキーが未入力です'}}
+
+    /* 1-2. 到達・CORS（GETヘルスチェック） */
+    let health=null;
+    try{
+      const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',credentials:'omit'});
+      health=await r.json().catch(()=>null);
+      step('Vercel API到達','ok');step('CORS','ok');
+    }catch(e){
+      let reachable=false;
+      try{await fetch(url,{method:'GET',mode:'no-cors',cache:'no-store',credentials:'omit'});reachable=true}catch(_){}
+      if(reachable){step('Vercel API到達','ok');step('CORS','ng','ALLOWED_ORIGIN を確認してください');return {ok:false,summary:'CORSエラー'}}
+      step('Vercel API到達','ng','URL・通信状態を確認してください');return {ok:false,summary:'Vercel APIへ到達できません'};
+    }
+    if(!health||health.service!=='kouji-next-ai'){step('AIプロキシ確認','ng','このURLは工事管理nextのAI APIではありません');return {ok:false,summary:'AIプロキシURLが正しくありません'}}
+    if(health.accessTokenConfigured===false){step('APP_ACCESS_TOKEN認証','ng','Vercel側で未設定（設定後は再デプロイが必要）');return {ok:false,summary:'Vercel認証失敗（APP_ACCESS_TOKEN未設定）'}}
+
+    /* 3-6. 認証 → OpenAIキー → モデル → Responses API */
+    try{
+      const d=await postAi(cfg,{mode:'test'});
+      step('APP_ACCESS_TOKEN認証','ok');step('OpenAI APIキー','ok');
+      step('モデル利用可能','ok',d.fallback?`${d.requestedModel} が使えないため ${d.model} を使用`:d.model);
+      step('Responses API応答','ok');
+      return {ok:true,summary:`AI接続成功 — ${modelLabel(d.model)}`};
+    }catch(e){
+      const c=e.code||'';
+      if(/^ACCESS_|HTTP_401/.test(c)){step('APP_ACCESS_TOKEN認証','ng',e.message);return {ok:false,summary:'Vercel認証失敗'}}
+      step('APP_ACCESS_TOKEN認証','ok');
+      if(c==='OPENAI_KEY_MISSING'||c==='OPENAI_KEY_INVALID'||c==='OPENAI_QUOTA'){step('OpenAI APIキー','ng',e.message);return {ok:false,summary:'OpenAI APIキーエラー'}}
+      step('OpenAI APIキー','ok');
+      if(c==='MODEL_UNAVAILABLE'){step('モデル利用可能','ng',e.message);return {ok:false,summary:'モデルが利用できません'}}
+      step('Responses API応答','ng',e.message);return {ok:false,summary:'OpenAI APIエラー'};
+    }
   }
 
   function escapeLines(s){return esc(s).replace(/\n/g,'<br>')}
@@ -180,21 +270,44 @@
   }
 
   function openAiSettings(){
+    migrateAiCfg();
     const c=aiCfg();
     openModal(`<div class="mHead"><h2>AIアシスタント設定</h2><button class="btn ghost icon" type="button" data-close aria-label="閉じる">${icon('x')}</button></div>
       <div class="mBody">
         <div class="field"><label>外部AIを使用する</label><select id="aiEnabled"><option value="false">使用しない（ローカル集計のみ）</option><option value="true">使用する</option></select></div>
-        <div class="field" style="margin-top:12px"><label>AIプロキシURL</label><input id="aiEndpoint" value="${esc(c.endpoint||'')}" placeholder="https://...workers.dev/"><span class="hint">APIキーをGitHub Pagesへ書かないため、Cloudflare Worker等の中継先を指定します。</span></div>
+        <div class="field" style="margin-top:12px"><label>AIプロキシURL</label><input id="aiEndpoint" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(c.endpoint||'')}" placeholder="${AI_ENDPOINT_DEFAULT}"></div>
+        <div class="field" style="margin-top:12px"><label>AIアクセスキー</label>
+          <div style="display:flex;gap:6px"><input id="aiAccessKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1" placeholder="Vercelの APP_ACCESS_TOKEN と同じ文字列"><button class="btn" type="button" id="aiKeyShow">表示</button></div>
+          <span class="hint">OpenAIの sk-... APIキーではありません。OpenAIキーはVercel側だけに置き、この端末には保存しません。ここにはVercelの APP_ACCESS_TOKEN と同じ文字列を入れます（この端末内にだけ保存）。</span></div>
         <label class="check" style="margin-top:14px"><input type="checkbox" id="aiPreferLocal" ${c.preferLocal!==false?'checked':''}>答えられる質問は端末内だけで集計する</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendNotes" ${c.sendNotes?'checked':''}>外部AIへタスク・予定のメモも送る</label>
-        <p class="hint" style="margin-top:12px">既定ではタイトル・日付・時刻・駅・優先度・カテゴリだけを送信します。APIキーはこのアプリには保存しません。</p>
+        <div id="aiTestResult" class="hint" style="margin-top:12px;line-height:1.8" aria-live="polite"></div>
       </div>
       <div class="mFoot"><button class="btn" type="button" id="aiTest">接続テスト</button><span class="grow"></span><button class="btn" type="button" data-close>キャンセル</button><button class="btn primary" type="button" id="aiSave">保存</button></div>`,
       {onMount:box=>{
-        const en=box.querySelector('#aiEnabled'),ep=box.querySelector('#aiEndpoint'),local=box.querySelector('#aiPreferLocal'),notes=box.querySelector('#aiSendNotes');
+        const $b=s=>box.querySelector(s);
+        const en=$b('#aiEnabled'),ep=$b('#aiEndpoint'),key=$b('#aiAccessKey'),local=$b('#aiPreferLocal'),notes=$b('#aiSendNotes'),out=$b('#aiTestResult'),testBtn=$b('#aiTest');
         en.value=String(!!c.enabled);
-        box.querySelector('#aiSave').onclick=()=>{saveAiCfg({enabled:en.value==='true',endpoint:ep.value.trim(),preferLocal:local.checked,sendNotes:notes.checked});closeModal();toast('AI設定を保存しました')};
-        box.querySelector('#aiTest').onclick=async()=>{const old=aiCfg();saveAiCfg({enabled:true,endpoint:ep.value.trim(),preferLocal:false,sendNotes:notes.checked});try{await remoteAnswer('接続テストです。「接続できました」と短く答えてください。');toast('AIへ接続できました')}catch(e){toast('接続できませんでした：'+e.message)}finally{saveAiCfg(old)}};
+        key.value=c.accessKey||'';
+        $b('#aiKeyShow').onclick=e=>{const v=key.type==='password';key.type=v?'text':'password';e.currentTarget.textContent=v?'隠す':'表示'};
+        /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
+        const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked}};
+        $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
+        testBtn.onclick=async()=>{
+          const cfg=readForm();
+          ep.value=cfg.endpoint;key.value=cfg.accessKey;
+          testBtn.disabled=true;out.innerHTML='';
+          const rows=[];
+          const render=()=>{out.innerHTML=rows.map(x=>`<div>${x.state==='ok'?'✅':'❌'} ${esc(x.label)}${x.detail?`<span style="opacity:.75"> — ${esc(x.detail)}</span>`:''}</div>`).join('')};
+          let res;
+          try{res=await testConnection(cfg,x=>{rows.push(x);render()})}
+          catch(e){res={ok:false,summary:e.message||String(e)}}
+          finally{testBtn.disabled=false}
+          /* 成功した入力値はそのまま保存（失敗時は保存済み設定に一切触れない） */
+          if(res.ok){saveAiCfg(Object.assign(cfg,{enabled:true}));en.value='true';res.summary+='（設定を保存しました）'}
+          out.insertAdjacentHTML('afterbegin',`<div style="font-weight:800;margin-bottom:4px;color:${res.ok?'var(--accent)':'var(--danger)'}">${esc(res.summary)}</div>`);
+          toast(res.ok?res.summary:'接続できませんでした：'+res.summary);
+        };
       }});
   }
 
@@ -239,7 +352,8 @@
       const tools=tab.querySelector('[data-act=menu]');tab.insertBefore(b,tools||null);
     }
     document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='k'){e.preventDefault();openAssistant()}});
-    window.KoujiAI={open:openAssistant,settings:openAiSettings,askLocal:localAnswer};
+    migrateAiCfg();
+    window.KoujiAI={open:openAssistant,settings:openAiSettings,askLocal:localAnswer,test:()=>testConnection(aiCfg(),x=>console.log(x.state,x.label,x.detail||''))};
   }
 
   if(document.readyState==='complete')installUi();else window.addEventListener('load',installUi,{once:true});
