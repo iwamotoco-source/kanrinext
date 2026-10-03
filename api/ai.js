@@ -2,12 +2,12 @@
  * Environment variables (Vercel):
  *   OPENAI_API_KEY      required, keep as a Secret
  *   APP_ACCESS_TOKEN    required, random shared token for this private app
- *   OPENAI_MODEL        optional, defaults to gpt-5.6-luna
+ *   OPENAI_MODEL        optional, defaults to gpt-6-luna
  *   ALLOWED_ORIGIN      optional, defaults to https://iwamotoco-source.github.io
  */
 
 const DEFAULT_ORIGIN='https://iwamotoco-source.github.io';
-const DEFAULT_MODEL='gpt-5.6-luna';
+const DEFAULT_MODEL='gpt-6-luna';
 
 function normOrigin(v){
   return String(v||'').trim().replace(/\/+$/,'');
@@ -20,7 +20,12 @@ function cleanAccessToken(v){
   return String(v||'').replace(/[\r\n]+/g,'').trim();
 }
 function cleanModel(v){
-  return String(v||'').trim()||DEFAULT_MODEL;
+  const m=String(v||'').trim();
+  /* URLやOriginを誤ってOPENAI_MODELへ貼った場合は安全な既定値へ戻す */
+  if(!m||/^https?:\/\//i.test(m))return DEFAULT_MODEL;
+  /* 現行OpenAIモデル名以外の明らかな誤入力も既定値へフォールバック */
+  if(!/^(gpt-|o\d|chatgpt-)/i.test(m))return DEFAULT_MODEL;
+  return m;
 }
 function allowedOrigins(){
   return String(process.env.ALLOWED_ORIGIN||DEFAULT_ORIGIN)
