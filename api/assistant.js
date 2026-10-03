@@ -25,7 +25,7 @@ function extractText(data){
   }
   return parts.join('\n').trim();
 }
-export default async function handler(req,res){
+module.exports=async function handler(req,res){
   const origin=req.headers.origin||'';
   const allowed=process.env.ALLOWED_ORIGIN||'https://iwamotoco-source.github.io';
   const headers=cors(origin,allowed);
@@ -36,7 +36,8 @@ export default async function handler(req,res){
   if(!process.env.OPENAI_API_KEY)return res.status(500).json({error:'OPENAI_API_KEY is not configured'});
   if(!process.env.OPENAI_MODEL)return res.status(500).json({error:'OPENAI_MODEL is not configured'});
 
-  const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
+  let body={};
+  try{body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{})}catch(e){return res.status(400).json({error:'invalid JSON'})}
   const query=String(body.query||'').slice(0,2000);
   const context=body.context||{};
   if(!query)return res.status(400).json({error:'query is required'});
@@ -70,4 +71,4 @@ export default async function handler(req,res){
   }catch(e){
     return res.status(500).json({error:e?.message||'AI proxy failed'});
   }
-}
+};
