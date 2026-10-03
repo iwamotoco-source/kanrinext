@@ -14,7 +14,8 @@
     maxFiles:10,fileBytes:30*1024*1024,
     imageMaxDim:1800,imageMaxBytes:1.5*1024*1024,
     imagesTotal:8,                       /* サーバー側 LIMITS.images と同じ */
-    imageBytesTotal:3.3*1024*1024,       /* サーバー側 3.6MB より少し手前 */
+    imageBytesTotal:3.0*1024*1024,       /* 画像+PDF原本の合計。サーバー側 3.2MB（base64化後も本文上限4.5MBに収まる）より少し手前 */
+    pdfNativeBytes:2.0*1024*1024,        /* PDFを原本のままAIへ渡せる大きさ（サーバー側 2.6MB） */
     pdfTextPages:150,pdfTextChars:60000,pdfAutoImages:4,pdfThinChars:120,
     sheetRows:400,sheetCols:60,sheetChars:40000,sheetTotalChars:90000,
     textChars:80000
@@ -130,6 +131,10 @@
     });
     return [...set].sort((a,b)=>a-b);
   }
+  /* 既定: 選択中のAIが Gemini のときだけPDF原本を送る（OpenAI選択時は従来の抽出方式）。2MB超は常に抽出方式 */
+  function defaultNative(file){
+    try{const c=window.KoujiAI&&window.KoujiAI._i&&window.KoujiAI._i.aiCfg();return file.size<=LIM.pdfNativeBytes&&(!c||c.provider!=='openai')}catch(e){return false}
+  }
   async function preparePdf(file){
     const lib=await getPdfjs();
     const buf=new Uint8Array(await file.arrayBuffer());
@@ -143,12 +148,14 @@
       texts.push(t);chars+=t.length;try{pg.cleanup()}catch(e){}
     }
     const att={
-      kind:'pdf',summary:`${n}ページ`,options:{imagePages:'',forceImages:false},
+      kind:'pdf',summary:`${n}ページ`,file,options:{imagePages:'',forceImages:false,native:defaultNative(file)},
       controls:[
+        ...(file.size<=LIM.pdfNativeBytes?[{type:'check',key:'native',label:'PDFを原本のままAIへ送る（図・表・手書きも読み取れる。Gemini推奨）。オフ＝文字抽出＋必要ページだけ画像'}]:[]),
         {type:'text',key:'imagePages',label:'画像として送るページ（例 1,3-5。空欄＝文字が少ないページを自動選択）',placeholder:'空欄＝自動'},
         {type:'check',key:'forceImages',label:'図面・スキャン対策：先頭から最大4ページを画像でも送る'}
       ]
     };
+    const isNative=()=>!!att.options.native&&file.size<=LIM.pdfNativeBytes;
     att.plan=slots=>{
       const o=att.options,custom=parsePages(o.imagePages,n);
       let pages=[],reason='';
@@ -163,6 +170,7 @@
       return {pages:pages.slice(0,cap),reason,over};
     };
     att.describe=(slots=LIM.imagesTotal)=>{
+      if(isNative())return [`PDF原本をそのまま送信（${n}ページ・${fmtSize(file.size)}）：図・表・手書きも読み取れます`,'文字抽出・ページ画像化は行いません'];
       const p=att.plan(slots),out=[];
       const used=Math.min(chars,LIM.pdfTextChars);
       out.push(chars>0?`テキスト抽出 ${Math.min(n,LIM.pdfTextPages)}ページ・${used.toLocaleString()}文字${chars>LIM.pdfTextChars?'（上限で省略）':''}`:'テキストは抽出できません（画像のみのPDF）');
@@ -171,8 +179,14 @@
       if(n>LIM.pdfTextPages)out.push(`${LIM.pdfTextPages}ページ目以降はテキスト抽出しません`);
       return out;
     };
-    att.estimate=(slots=LIM.imagesTotal)=>({images:att.plan(slots).pages.length,chars:Math.min(chars,LIM.pdfTextChars)});
+    att.estimate=(slots=LIM.imagesTotal)=>isNative()?{images:0,chars:0,pdfs:1,bytes:file.size}:{images:att.plan(slots).pages.length,chars:Math.min(chars,LIM.pdfTextChars)};
     att.build=async(opts={})=>{
+      if(isNative()){
+        opts.onProgress&&opts.onProgress(`${file.name}: PDF原本を準備中…`);
+        const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result||''));r.onerror=()=>rej(new FileError('PDFを読み込めませんでした','PDF'));r.readAsDataURL(file)});
+        const b64=data.replace(/^data:[^,]*,/,'');
+        return {images:[],texts:[],pdfs:[{name:file.name,label:`PDF ${n}ページ`,data:'data:application/pdf;base64,'+b64}]};
+      }
       const p=att.plan(opts.slots??LIM.imagesTotal),images=[];
       for(let k=0;k<p.pages.length;k++){
         opts.onProgress&&opts.onProgress(`${file.name}: p.${p.pages[k]} を画像化中…`);
@@ -439,22 +453,26 @@
     const fixedImages=atts.filter(a=>a.kind==='image').length;
     let slots=LIM.imagesTotal-fixedImages;
     if(slots<0)throw new FileError(`画像は合計${LIM.imagesTotal}枚までです（${fixedImages}枚選択中）`,'TOO_MANY');
-    const images=[],texts=[],notes=[];
+    const images=[],texts=[],notes=[],pdfs=[];
     for(const a of atts){
       const r=await a.build({slots,onProgress});
       if(a.kind!=='image')slots-=r.images.length;
-      images.push(...r.images);texts.push(...r.texts);
+      images.push(...r.images);texts.push(...r.texts);pdfs.push(...(r.pdfs||[]));
     }
+    const pdfBytes=pdfs.reduce((n,p)=>n+dataBytes(p.data),0);
+    if(pdfs.length>3)throw new FileError('PDF原本は3件までです。「PDFを原本のまま送る」をオフにするか、件数を減らしてください','TOO_MANY');
+    if(pdfBytes>LIM.imageBytesTotal-0.4*1024*1024)throw new FileError('PDF原本が大きすぎて送れません。「PDFを原本のまま送る」をオフにするか、件数を減らしてください','TOO_LARGE');
     if(images.length>LIM.imagesTotal)throw new FileError(`画像は合計${LIM.imagesTotal}枚までです`,'TOO_MANY');
+    const budget=LIM.imageBytesTotal-pdfBytes;
     let total=images.reduce((n,i)=>n+dataBytes(i.data),0),pass=0;
-    while(total>LIM.imageBytesTotal&&pass<3){
+    while(total>budget&&pass<3){
       pass++;onProgress&&onProgress('画像を圧縮しています…');
       for(const im of images)im.data=await shrinkData(im.data,pass===1?.8:.75,pass===3?.5:.62);
       total=images.reduce((n,i)=>n+dataBytes(i.data),0);
     }
-    if(total>LIM.imageBytesTotal)throw new FileError('画像が大きすぎて送れません。枚数を減らしてください','TOO_LARGE');
+    if(total>budget)throw new FileError('画像が大きすぎて送れません。枚数を減らしてください','TOO_LARGE');
     const chars=texts.reduce((n,t)=>n+t.text.length,0);
-    return {images,texts,notes,stats:{images:images.length,imageBytes:total,chars}};
+    return {images,texts,pdfs,notes,stats:{images:images.length,imageBytes:total,pdfs:pdfs.length,pdfBytes,chars}};
   }
 
   window.KoujiAIFiles={LIM,TAG,ACCEPT_DOC,FileError,classify,prepare,buildAll,fmtSize,

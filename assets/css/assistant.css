@@ -183,3 +183,10 @@ html.aiWsOpen body{overscroll-behavior:none}
   .aiWsHead .btn.icon{width:34px;height:34px}
   .aiMark{display:none}
 }
+
+/* 送信先の切替（ローカルのみ / Geminiへ送信） */
+.aiDest{display:inline-flex;margin-left:auto;border:1px solid var(--line-2);border-radius:999px;overflow:hidden;flex:0 0 auto}
+.aiDest button{border:0;background:transparent;color:var(--ink-2);font-size:11.5px;padding:3px 10px;cursor:pointer;min-height:26px;font-family:inherit}
+.aiDest button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.aiDest button[data-dest=local].on{background:var(--ok);color:#fff}
+.aiBadge.warn{border-color:color-mix(in srgb,var(--warn,#d99a2b) 60%,var(--line));color:var(--warn,#d99a2b)}

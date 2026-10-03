@@ -8,9 +8,16 @@
   const AI_ENDPOINT_DEFAULT='https://kanrinext.vercel.app/api/ai';
   /* sendNotes/preferLocal は従来どおり。以下はAI Workspaceで追加した設定（既存の保存値は壊さず、無ければ既定値で補う）:
      sendSchedule 外部AIへ予定/タスクを送る / actionsEnabled AIによる操作候補 / confirmFileSend 添付送信前の確認
-     saveHistory 会話履歴を端末に保存 / autoSpeak AI回答の自動読み上げ */
+     saveHistory 会話履歴を端末に保存 / autoSpeak AI回答の自動読み上げ
+     provider 使うAI（'gemini' 標準 / 'openai' 予備。既定は必ず gemini）
+     fallbackToOpenAI Geminiが使えないとき OpenAI を使う（既定オフ。有料APIへ勝手に送らないため、明示ONのときだけ）
+     localOnly 「ローカルのみ」（オンの間は外部AIへ何も送らない） */
   const AI_DEFAULT={enabled:false,endpoint:AI_ENDPOINT_DEFAULT,accessKey:'',sendNotes:false,preferLocal:true,
-    sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false};
+    sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false,
+    provider:'gemini',fallbackToOpenAI:false,localOnly:false};
+  const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI'};
+  const providerOf=c=>(c&&c.provider==='openai')?'openai':'gemini';
+  const providerLabel=p=>PROVIDER_LABEL[p]||String(p||'');
   let history=[];
 
   /* 設定は localCfg.ai（localStorage: koujiNextLocalConfigV1）だけに保存する。
@@ -182,6 +189,9 @@
     const {url}=normEndpoint(cfg.endpoint),key=cleanKey(cfg.accessKey);
     if(!url)throw new AiError('AIプロキシURLが未設定です','NO_ENDPOINT','config');
     if(!key)throw new AiError('AIアクセスキーが未入力です','ACCESS_KEY_MISSING','config');
+    /* 使うAIの選択はここで一括して付ける（Gemini が標準。OpenAI への切替は明示した場合のみ） */
+    const prov=providerOf(cfg);
+    body=Object.assign({},body,{provider:prov,fallbackToOpenAI:prov==='gemini'&&cfg.fallbackToOpenAI===true});
     let r;
     try{
       r=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',
@@ -192,7 +202,7 @@
       throw new AiError('Vercel APIへ接続できません（通信・CORS）','NETWORK','network');
     }
     let data={};try{data=await r.json()}catch(e){}
-    if(!r.ok)throw new AiError(data.error||`AI ${r.status}`,data.code||`HTTP_${r.status}`,'server',data.detail);
+    if(!r.ok){const er=new AiError(data.error||`AI ${r.status}`,data.code||`HTTP_${r.status}`,'server',data.detail);er.provider=data.provider||prov;er.fallbackTried=data.fallbackTried;throw er}
     return data;
   }
 
@@ -206,6 +216,7 @@
 
   function modelLabel(m){
     const p=String(m||'').split('-');
+    if(p[0].toLowerCase()==='gemini'&&p.length>1)return ['Gemini '+p[1],...p.slice(2).map(x=>x.charAt(0).toUpperCase()+x.slice(1))].join(' ');
     if(p[0].toLowerCase()!=='gpt'||p.length<2)return String(m||'');
     return ['GPT-'+p[1],...p.slice(2).map(x=>x.charAt(0).toUpperCase()+x.slice(1))].join(' ');
   }
@@ -232,21 +243,26 @@
     if(!health||health.service!=='kouji-next-ai'){step('AIプロキシ確認','ng','このURLは工事管理nextのAI APIではありません');return {ok:false,summary:'AIプロキシURLが正しくありません'}}
     if(health.accessTokenConfigured===false){step('APP_ACCESS_TOKEN認証','ng','Vercel側で未設定（設定後は再デプロイが必要）');return {ok:false,summary:'Vercel認証失敗（APP_ACCESS_TOKEN未設定）'}}
 
-    /* 3-6. 認証 → OpenAIキー → モデル → Responses API */
+    const prov=providerOf(cfg),PL=providerLabel(prov);
+    /* 古い api/ai.js（OpenAI専用）が動いている場合は、Gemini を選んでいても通らない */
+    if(prov==='gemini'&&!health.gemini){step('Vercel API','ng','Vercel側の api/ai.js が古い版です（Gemini未対応）。最新版をデプロイしてください');return {ok:false,summary:'Vercel側APIがGemini未対応（再デプロイが必要）'}}
+    /* 認証 → APIキー → モデル → 応答 */
     try{
       const d=await postAi(cfg,{mode:'test'});
-      step('APP_ACCESS_TOKEN認証','ok');step('OpenAI APIキー','ok');
-      step('モデル利用可能','ok',d.fallback?`${d.requestedModel} が使えないため ${d.model} を使用`:d.model);
-      step('Responses API応答','ok');
-      return {ok:true,summary:`AI接続成功 — ${modelLabel(d.model)}`};
+      step('APP_ACCESS_TOKEN認証','ok');step(`${PL} APIキー`,'ok');
+      step(prov==='gemini'?'Gemini モデル利用可能':'モデル利用可能','ok',d.fallback?`${d.requestedModel} が使えないため ${d.model} を使用`:d.model);
+      step(prov==='gemini'?'Gemini 応答':'Responses API応答','ok');
+      return {ok:true,summary:`${prov==='gemini'?'Gemini':'AI'}接続成功 — ${modelLabel(d.model)}`,model:d.model,provider:prov};
     }catch(e){
       const c=e.code||'';
       if(/^ACCESS_|HTTP_401/.test(c)){step('APP_ACCESS_TOKEN認証','ng',e.message);return {ok:false,summary:'Vercel認証失敗'}}
       step('APP_ACCESS_TOKEN認証','ok');
-      if(c==='OPENAI_KEY_MISSING'||c==='OPENAI_KEY_INVALID'||c==='OPENAI_QUOTA'){step('OpenAI APIキー','ng',e.message);return {ok:false,summary:'OpenAI APIキーエラー'}}
-      step('OpenAI APIキー','ok');
-      if(c==='MODEL_UNAVAILABLE'){step('モデル利用可能','ng',e.message);return {ok:false,summary:'モデルが利用できません'}}
-      step('Responses API応答','ng',e.message);return {ok:false,summary:'OpenAI APIエラー'};
+      if(/KEY_MISSING|KEY_INVALID/.test(c)||c==='OPENAI_QUOTA'){step(`${PL} APIキー`,'ng',c.endsWith('KEY_MISSING')?`Vercel に ${prov==='gemini'?'GEMINI_API_KEY':'OPENAI_API_KEY'} が未設定です（設定後は再デプロイが必要）`:e.message);return {ok:false,summary:c==='OPENAI_QUOTA'?'OpenAIの残高・利用上限エラー':c.endsWith('KEY_MISSING')?`${PL} APIキーが設定されていません`:`${PL} APIキーが無効です`}}
+      step(`${PL} APIキー`,'ok');
+      if(c==='MODEL_UNAVAILABLE'){step(`${PL} モデル利用可能`,'ng',e.message);return {ok:false,summary:`${PL}モデルが利用できません`}}
+      step(`${PL} モデル利用可能`,'ok');
+      if(c==='GEMINI_QUOTA'){step(`${PL} 応答`,'ng',e.message);return {ok:false,summary:'Gemini無料枠の利用上限に達した可能性があります'}}
+      step(`${PL} 応答`,'ng',e.message);return {ok:false,summary:`${PL} APIエラー`};
     }
   }
 
@@ -277,6 +293,21 @@
     }finally{send.disabled=false;input.disabled=false;input.focus()}
   }
 
+  /* 「外部AIへ送信されるデータ」の説明（設定画面・添付確認で共通） */
+  function sendInfoHtml(prov,o={}){
+    const PL=providerLabel(prov),free=prov==='gemini';
+    const li=t=>`<li>${t}</li>`;
+    return `<ul style="margin:6px 0 0 1.1em;padding:0;line-height:1.7">
+      ${li('質問文と、直近の会話（最大10件）')}
+      ${li(o.sendSchedule===false?'予定・タスク：<b>送りません</b>（設定でオフ）':'予定・タスク：質問の期間に絞って最大各300件（'+(o.sendNotes?'メモも含む':'メモは含まない')+'）')}
+      ${li('添付ファイルの内容（画像・PDF・表の抽出文字など）。送信前に内容を確認できます')}
+      ${li('端末内で答えられる質問（今日の予定・件数・未完了タスクなど）は<b>何も送りません</b>。「ローカルのみ」にすると外部AIへは一切送りません')}
+      ${li('送らないもの：各AIのAPIキー（Vercel内だけ）、会話履歴の全件、端末内のその他のデータ')}
+      ${li('音声入力は、ブラウザ/OSの音声認識を使います。音声そのものは本アプリにもAIにも送りません（文字になった内容だけが入力欄に入ります）')}
+    </ul>
+    <p style="margin:8px 0 0">送信先：この端末 → Vercel → <b>${esc(PL)}</b>。ファイルは保存しません。${free?'<br><b>Gemini 無料枠</b>では、入力・出力が Google の製品改善に使われる場合があります（有料枠は使われません）。機密性の高い資料（個人情報・未公開の図面・契約書など）は送らないでください。':'<br>OpenAI へは保存を求めない設定（store=false）で送信します。API利用は課金対象です。'}</p>`;
+  }
+
   function openAiSettings(){
     migrateAiCfg();
     const c=aiCfg();
@@ -286,7 +317,14 @@
         <div class="field" style="margin-top:12px"><label>AIプロキシURL</label><input id="aiEndpoint" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(c.endpoint||'')}" placeholder="${AI_ENDPOINT_DEFAULT}"></div>
         <div class="field" style="margin-top:12px"><label>AIアクセスキー</label>
           <div style="display:flex;gap:6px"><input id="aiAccessKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1" placeholder="Vercelの APP_ACCESS_TOKEN と同じ文字列"><button class="btn" type="button" id="aiKeyShow">表示</button></div>
-          <span class="hint">OpenAIの sk-... APIキーではありません。OpenAIキーはVercel側だけに置き、この端末には保存しません。ここにはVercelの APP_ACCESS_TOKEN と同じ文字列を入れます（この端末内にだけ保存）。</span></div>
+          <span class="hint">Gemini / OpenAI のAPIキーではありません。AIのキーはVercelの環境変数（GEMINI_API_KEY / OPENAI_API_KEY）だけに置き、この端末には保存しません。ここにはVercelの APP_ACCESS_TOKEN と同じ文字列を入れます（この端末内にだけ保存）。</span></div>
+        <div class="field aiProvBox" style="margin-top:14px"><label>AIプロバイダー</label>
+          <label class="check aiProvRow"><input type="radio" name="aiProv" value="gemini" ${providerOf(c)==='gemini'?'checked':''}><span><b>Gemini</b>（標準）<small class="hint">Google AI Studio の無料枠で利用できます。Vercelの GEMINI_API_KEY を使用</small></span></label>
+          <label class="check aiProvRow"><input type="radio" name="aiProv" value="openai" ${providerOf(c)==='openai'?'checked':''}><span><b>OpenAI</b>（予備・任意）<small class="hint">有料API（課金設定が必要）。Vercelの OPENAI_API_KEY を使用</small></span></label>
+          <label class="check" id="aiFbRow" style="margin-top:10px"><input type="checkbox" id="aiFallback" ${c.fallbackToOpenAI===true?'checked':''}><span>Geminiが利用できない場合、OpenAIを使用する<small class="hint">初期値はオフ。オンにすると、Geminiの無料枠上限・障害のときに限り OpenAI（課金対象）へ送信します。オフなら、そこで止まります。</small></span></label>
+        </div>
+        <details class="aiSendInfo" id="aiSendInfo"><summary>外部AIへ送信されるデータ</summary>
+          <div id="aiSendInfoBody" class="hint"></div></details>
         <label class="check" style="margin-top:14px"><input type="checkbox" id="aiPreferLocal" ${c.preferLocal!==false?'checked':''}>答えられる質問は端末内だけで集計する</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendSchedule" ${c.sendSchedule!==false?'checked':''}>外部AIへ予定・タスクを送る（オフにすると、登録データを参照せずに質問だけを送る）</label>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="aiSendNotes" ${c.sendNotes?'checked':''}>外部AIへタスク・予定のメモも送る</label>
@@ -311,9 +349,20 @@
         en.value=String(!!c.enabled);
         key.value=c.accessKey||'';
         $b('#aiKeyShow').onclick=e=>{const v=key.type==='password';key.type=v?'text':'password';e.currentTarget.textContent=v?'隠す':'表示'};
+        const fb=$b('#aiFallback'),fbRow=$b('#aiFbRow'),infoBody=$b('#aiSendInfoBody');
+        const curProv=()=>(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini';
+        const refreshProv=()=>{
+          const p=curProv();
+          fb.disabled=p==='openai';fbRow.style.opacity=p==='openai'?'.5':'1';
+          infoBody.innerHTML=sendInfoHtml(p,{sendSchedule:sched.checked,sendNotes:notes.checked});
+        };
+        box.querySelectorAll('input[name=aiProv]').forEach(r=>r.onchange=refreshProv);
+        sched.addEventListener('change',refreshProv);notes.addEventListener('change',refreshProv);
+        refreshProv();
         /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
         const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked,
-          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked}};
+          sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,
+          provider:(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini',fallbackToOpenAI:!!($b('#aiFallback')&&$b('#aiFallback').checked&&(box.querySelector('input[name=aiProv]:checked')||{}).value!=='openai')}};
         $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
         testBtn.onclick=async()=>{
           const cfg=readForm();
@@ -356,6 +405,7 @@
   function injectStyle(){
     if(document.getElementById('aiStyle'))return;
     const st=document.createElement('style');st.id='aiStyle';st.textContent=`
+    .aiProvRow,.aiProvBox .check{align-items:flex-start;gap:8px;margin-top:8px}.aiProvRow small,.aiProvBox small{display:block;font-weight:400;opacity:.8;line-height:1.5}.aiSendInfo{margin-top:12px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}.aiSendInfo summary{cursor:pointer;font-weight:700;font-size:13px}
     .aiTopBtn{font-weight:800;letter-spacing:.02em}.aiTopBtn .aiDot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
     .aiMark{width:34px;height:34px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:900;letter-spacing:-.03em;flex:0 0 auto}.aiHead h2{margin-bottom:1px}.aiBody{padding:0;display:flex;flex-direction:column;min-height:360px}.aiSuggest{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);overflow-x:auto}.aiSuggest button{flex:0 0 auto;height:28px;border:1px solid var(--line);border-radius:999px;padding:0 10px;color:var(--ink-2);background:var(--surface-2);font-size:12px}.aiChat{flex:1;min-height:280px;max-height:55vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}.aiMsg{display:flex;flex-direction:column;max-width:86%}.aiMsg.user{margin-left:auto;align-items:flex-end}.aiMsg.bot{margin-right:auto;align-items:flex-start}.aiBubble{border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 12px;line-height:1.7;white-space:normal}.aiMsg.user .aiBubble{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.aiMsg.thinking{opacity:.65}.aiActs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.aiComposer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--surface)}.aiComposer textarea{flex:1;resize:none;min-height:38px;max-height:100px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);padding:9px 10px;outline:none;font:inherit}.aiComposer textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
     @media(max-width:820px){.aiTopBtn{width:34px;padding:0;justify-content:center}.aiTopBtn .aiLbl{display:none}.aiBody{min-height:0}.aiChat{max-height:none;min-height:0}.aiSuggest{padding:8px}.aiMsg{max-width:92%}.aiComposer{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
@@ -383,7 +433,7 @@
     migrateAiCfg();
     window.KoujiAI={open:openEntry,openLegacy:openAssistant,settings:openAiSettings,askLocal:localAnswer,test:()=>testConnection(aiCfg(),x=>console.log(x.state,x.label,x.detail||'')),
       /* AI Workspace が使う内部部品（通信・認証・設定・ローカル集計は従来の実装をそのまま共有する） */
-      _i:{aiCfg,saveAiCfg,postAi,normEndpoint,cleanKey,AiError,localAnswer,rangeOfQuery,modelLabel,migrateAiCfg,AI_DEFAULT}};
+      _i:{aiCfg,saveAiCfg,postAi,providerOf,providerLabel,sendInfoHtml,normEndpoint,cleanKey,AiError,localAnswer,rangeOfQuery,modelLabel,migrateAiCfg,AI_DEFAULT}};
   }
 
   if(document.readyState==='complete')installUi();else window.addEventListener('load',installUi,{once:true});

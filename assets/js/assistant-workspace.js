@@ -2,7 +2,7 @@
    assistant-workspace.js — 工事管理next AI Workspace（画面本体）
    部品: assistant.js（通信/認証/設定/ローカル集計）・assistant-storage.js（履歴）
          assistant-files.js（添付）・assistant-voice.js（音声）・assistant-actions.js（操作候補）
-   方針: 端末内で答えられる質問は端末内で処理し、ファイル解析・自由な言い回しだけ Vercel → OpenAI へ送る。
+   方針: 端末内で答えられる質問は端末内で処理し、ファイル解析・自由な言い回しだけ Vercel → Gemini（標準）/ OpenAI（予備）へ送る。
          送る内容は送信前に確認でき、AIの提案は承認するまでデータを変更しない。
    ========================================================= */
 'use strict';
@@ -18,6 +18,7 @@
   };
   const $q=sel=>S.el.querySelector(sel);
   const cfg=()=>AI().aiCfg();
+  const provLabel=()=>AI().providerLabel(AI().providerOf(cfg()));
 
   /* ---------- 小物 ---------- */
   const SVG={
@@ -207,8 +208,10 @@
   /* ---------- 状態表示・参照中データ ---------- */
   function refreshStatus(){
     if(!S.el)return;
-    const c=cfg(),ready=c.enabled&&c.endpoint&&c.accessKey;
-    $q('#aiStatus').innerHTML=ready?'外部AI：有効（Vercel → OpenAI）｜予定・タスクの集計は端末内を優先':'外部AI：未設定｜予定・タスクの集計は端末内のみ（添付解析・自由な依頼には設定が必要）';
+    const c=cfg(),ready=c.enabled&&c.endpoint&&c.accessKey,PL=provLabel();
+    $q('#aiStatus').innerHTML=!ready?'外部AI：未設定｜予定・タスクの集計は端末内のみ（添付解析・自由な依頼には設定が必要）'
+      :c.localOnly?'ローカルのみ｜外部AIへは何も送信しません（端末内の集計だけ）'
+      :`外部AI：有効（Vercel → ${esc(PL)}${AI().providerOf(c)==='gemini'&&c.fallbackToOpenAI===true?'／上限時は OpenAI':''}）｜予定・タスクの集計は端末内を優先`;
     const b=$q('#aiSpeakToggle');
     b.innerHTML=ic(c.autoSpeak?'spk':'spkOff');b.setAttribute('aria-pressed',String(!!c.autoSpeak));
     b.title=c.autoSpeak?'自動読み上げ：オン':'自動読み上げ：オフ';
@@ -232,9 +235,17 @@
         bits.push(`<button type="button" class="aiPill ${S.ctx.events?'on':''}" data-ctx="events" aria-pressed="${S.ctx.events}">予定 ${S.ctx.events?ctx.counts.events+'件':'送らない'}${S.ctx.events&&ctx.range?`<small>${fmtMD(ctx.range.from)}〜${fmtMD(ctx.range.to)}</small>`:''}</button>`);
         bits.push(`<button type="button" class="aiPill ${S.ctx.tasks?'on':''}" data-ctx="tasks" aria-pressed="${S.ctx.tasks}">未完了タスク ${S.ctx.tasks?ctx.counts.tasks+'件':'送らない'}</button>`);
       }
-      if(q||hasFiles)bits.push(`<span class="aiCtxNote">${ready?'送信先：OpenAI（Vercel経由）':'外部AI未設定'}</span>`);
+      if(q||hasFiles)bits.push(`<span class="aiCtxNote">${!ready?'外部AI未設定':c.localOnly?'ローカルのみ（送信しません）':`送信先：${esc(provLabel())}（Vercel経由）`}</span>`);
     }
-    host.innerHTML=(bits.length?'<span class="aiCtxLbl">参照中</span>':'')+bits.join('');
+    /* 送信先の切替: ローカルのみ / Gemini（または選択中のAI）へ送信 */
+    const dest=`<span class="aiDest" role="group" aria-label="送信先"><button type="button" class="${c.localOnly?'on':''}" data-dest="local" aria-pressed="${!!c.localOnly}">ローカルのみ</button><button type="button" class="${!c.localOnly?'on':''}" data-dest="ai" aria-pressed="${!c.localOnly}">${esc(provLabel())}へ送信</button></span>`;
+    host.innerHTML=(bits.length?'<span class="aiCtxLbl">参照中</span>':'')+bits.join('')+dest;
+    host.querySelectorAll('[data-dest]').forEach(b=>b.onclick=()=>{
+      const toLocal=b.dataset.dest==='local';
+      if(!toLocal&&!(c.enabled&&c.endpoint&&c.accessKey)){window.KoujiAI.settings();return}
+      AI().saveAiCfg({localOnly:toLocal});refreshStatus();
+      toast(toLocal?'ローカルのみ：外部AIへは送信しません':`${provLabel()}へ送信できます（端末内で答えられる質問は引き続き送信しません）`);
+    });
     host.querySelectorAll('[data-ctx]').forEach(b=>b.onclick=()=>{S.ctx[b.dataset.ctx]=!S.ctx[b.dataset.ctx];renderCtx()});
   }
 
@@ -281,7 +292,7 @@
       const ctxLine=ctx?(ctx.off?'送信しません（設定でオフ）':`予定 ${ctx.counts.events}件${ctx.range?`（${fmtMD(ctx.range.from)}〜${fmtMD(ctx.range.to)}）`:''}・タスク ${ctx.counts.tasks}件${cfg().sendNotes?'・メモを含む':'・メモは含まない'}`):'';
       openModal(`<div class="mHead"><h2>${confirm?'AIに送る内容の確認':'送信内容の設定'}</h2><button class="btn ghost icon" type="button" data-close aria-label="閉じる">${icon('x')}</button></div>
         <div class="mBody aiCfm">
-          ${confirm?`<p class="hint">次の内容が Vercel 経由で OpenAI に送られます。ファイルはこの端末内で処理し、サーバーにもOpenAIにも保存しません（store=false）。</p>`:''}
+          ${confirm?`<p class="hint">次の内容が Vercel 経由で <b>${esc(provLabel())}</b> に送られます。ファイルはこの端末内で処理し、Vercelにも${esc(provLabel())}にも保存を求めません。${AI().providerOf(cfg())==='gemini'?'<br><b>Gemini 無料枠では、入力・出力が Google の製品改善に使われる場合があります。</b>機密性の高い資料は送らず、キャンセルしてください（「ローカルのみ」に切り替えると何も送られません）。':''}</p>`:''}
           ${confirm?`<div class="aiCfmSec"><h4>質問</h4><div class="aiCfmText">${esc(text)}</div></div>
           <div class="aiCfmSec"><h4>工事管理nextのデータ</h4><div>${esc(ctxLine)}</div></div>`:''}
           <div class="aiCfmSec"><h4>添付ファイル</h4>${atts.map(fileHtml).join('')}<div class="hint" id="aiCfmTotal"></div></div>
@@ -289,13 +300,13 @@
         <div class="mFoot"><span class="grow"></span><button class="btn" type="button" data-close>${confirm?'キャンセル':'閉じる'}</button>${confirm?'<button class="btn primary" type="button" id="aiCfmOk">この内容で送信</button>':''}</div>`,
         {wide:true,onClose:()=>done(false),onMount:box=>{
           const refresh=()=>{
-            let imgs=0,chars=0;
+            let imgs=0,chars=0,pdfs=0;
             atts.forEach(a=>{
               const el=box.querySelector(`.aiCfmFile[data-aid="${a.id}"] [data-desc]`);
               el.innerHTML=a.describe().map(x=>`<li>${esc(x)}</li>`).join('');
-              const e=a.estimate();imgs+=e.images;chars+=e.chars;
+              const e=a.estimate();imgs+=e.images;chars+=e.chars;pdfs+=e.pdfs||0;
             });
-            box.querySelector('#aiCfmTotal').textContent=`合計：画像 ${imgs}枚（上限${Files().LIM.imagesTotal}枚）・テキスト 約${chars.toLocaleString()}文字`;
+            box.querySelector('#aiCfmTotal').textContent=`合計：画像 ${imgs}枚（上限${Files().LIM.imagesTotal}枚）${pdfs?`・PDF原本 ${pdfs}件`:''}・テキスト 約${chars.toLocaleString()}文字`;
           };
           box.querySelectorAll('.aiCfmFile').forEach(row=>{
             const a=atts.find(x=>x.id===row.dataset.aid);
@@ -382,7 +393,7 @@
       row.innerHTML=`<div class="aiBub">${fmt(m.text)}</div>${(m.attachments||[]).length?`<div class="aiAtts">${m.attachments.map(a=>chipHtml(a)).join('')}</div>`:''}`;
       return row;
     }
-    const badge=m.error?'':m.mode==='local'?'<span class="aiBadge local">端末内で集計</span>':m.mode==='remote'?`<span class="aiBadge remote">AI（OpenAI）${m.model?' · '+esc(AI().modelLabel(m.model)):''}</span>`:'';
+    const badge=m.error?'':m.mode==='local'?'<span class="aiBadge local">端末内で集計</span>':m.mode==='remote'?`<span class="aiBadge remote ${esc(m.provider||'openai')}">${esc(AI().providerLabel(m.provider||'openai'))}${m.model?' · '+esc(AI().modelLabel(m.model)):''}</span>${m.fallbackFrom?'<span class="aiBadge warn" title="設定「Geminiが利用できない場合、OpenAIを使用する」により切り替えました">Gemini利用不可のためOpenAIで回答</span>':''}`:'';
     const sent=m.sent?`<span class="aiSentInfo">送信：${esc(m.sent)}</span>`:'';
     row.innerHTML=`<div class="aiBub">${fmt(m.text)}</div>${refChips(m)}
       <div class="aiStations"></div><div class="aiActHost"></div>
@@ -439,11 +450,19 @@
     ACCESS_KEY_INVALID:'AIアクセスキーが Vercel の APP_ACCESS_TOKEN と一致しません。設定を確認してください。',
     ACCESS_TOKEN_NOT_CONFIGURED:'Vercel 側に APP_ACCESS_TOKEN が設定されていません。',
     NO_ENDPOINT:'AIプロキシURLが未設定です。',
-    NETWORK:'Vercel API に接続できません。通信状態・URL・CORS（ALLOWED_ORIGIN）を確認してください。',
+    NETWORK:'Vercel API に接続できません。ネットワーク接続・URL・CORS（ALLOWED_ORIGIN）を確認してください。',
+    GEMINI_KEY_MISSING:'Gemini APIキーが設定されていません。Vercel の環境変数 GEMINI_API_KEY を登録して再デプロイしてください。',
+    GEMINI_KEY_INVALID:'Gemini APIキーが無効、または権限がありません。Vercel の GEMINI_API_KEY を確認してください。',
+    GEMINI_QUOTA:'Gemini無料枠の利用上限に達した可能性があります。しばらく待つか、明日もう一度お試しください。（設定で OpenAI へ切り替えることもできます）',
+    GEMINI_ERROR:'Gemini でエラーが発生しました。時間をおいて再試行してください。',
+    GEMINI_UNREACHABLE:'Vercel から Gemini に接続できませんでした。時間をおいて再試行してください。',
+    BLOCKED:'Gemini の安全フィルターにより回答できませんでした。内容を変えて再試行してください。',
+    TRUNCATED:'回答が長すぎて途中で切れました。依頼を小さく分けて（例：期間や工種を絞って）再試行してください。',
+    PROVIDER_INVALID:'AIプロバイダーの設定が不正です。AI設定を開いて選び直してください。',
     OPENAI_KEY_MISSING:'Vercel 側に OPENAI_API_KEY が設定されていません。',
     OPENAI_KEY_INVALID:'OpenAI APIキーが無効です（Vercel の環境変数を確認）。',
     OPENAI_QUOTA:'OpenAI の利用上限または残高不足です。',
-    MODEL_UNAVAILABLE:'指定されたモデルが利用できません。',
+    MODEL_UNAVAILABLE:'AIモデルが利用できません。Vercel の GEMINI_MODEL / OPENAI_MODEL を確認してください。',
     PAYLOAD_TOO_LARGE:'送信データが大きすぎます。画像の枚数やファイルを減らして再試行してください。',
     TOO_MANY_FILES:'添付が多すぎます。',
     UNSUPPORTED_FILE:'対応していない形式の添付が含まれています。',
@@ -454,9 +473,10 @@
   };
   function errText(e){
     if(e&&e.code==='BAD_REQUEST'&&/query is required/.test(e.detail||''))return 'Vercel 側の API が古い版です（AI Workspace 未対応）。最新の api/ai.js をデプロイしてください。';
-    return ERR[e&&e.code]||(e&&e.message)||'AIへの問い合わせに失敗しました。';
+    const base=ERR[e&&e.code]||(e&&e.message)||'AIへの問い合わせに失敗しました。';
+    return base+(e&&e.fallbackTried===true?'\n（設定に従い OpenAI への切り替えも試みましたが、利用できませんでした）':'');
   }
-  const needsCfg=e=>/^ACCESS_|^NO_ENDPOINT|^NETWORK$/.test(e&&e.code||'');
+  const needsCfg=e=>/^ACCESS_|^NO_ENDPOINT|^NETWORK$|^GEMINI_KEY|^OPENAI_KEY|^GEMINI_QUOTA$|^OPENAI_QUOTA$|^PROVIDER_INVALID$/.test(e&&e.code||'');
 
   async function send(){
     const inp=$q('#aiInput');
@@ -466,7 +486,8 @@
     if(!text&&!ready.length)return;
     const withFiles=ready.length>0;
     if(!text)text='添付ファイルの内容を確認して、要点を整理してください。';
-    const c=cfg(),remoteReady=c.enabled&&c.endpoint&&c.accessKey;
+    const c=cfg(),remoteReady=c.enabled&&c.endpoint&&c.accessKey&&!c.localOnly;
+    if(withFiles&&c.localOnly){toast('「ローカルのみ」のため、添付ファイルは解析できません（送信先を切り替えてください）');return}
     if(c.autoSpeak)Voice().tts.unlock();   /* iOS: 送信タップ中に音声を解錠 */
     Voice().tts.stop();
 
@@ -499,8 +520,8 @@
         const m=addBot({id:mid(),role:'bot',mode:'local',text:'外部AIが未設定のため、端末内の簡易解析で「タスク」として提案します。予定の追加・ファイル解析にはAI接続の設定が必要です。内容を確認して実行してください。',ts:Date.now(),actions:acts});
         afterBot(m,{noSpeak:false});return;
       }
-      addBot({id:mid(),role:'bot',error:true,fixCfg:true,ts:Date.now(),
-        text:withFiles?'添付ファイルの解析には外部AIの設定が必要です。右上の歯車から「外部AIを使用する」・AIプロキシURL・AIアクセスキーを設定してください。':'この質問は端末内の集計では解釈できません。外部AIを設定すると、自由な言い回しの質問や予定・タスクの追加提案ができます。'});
+      addBot({id:mid(),role:'bot',error:true,fixCfg:!c.localOnly,ts:Date.now(),
+        text:c.localOnly?'「ローカルのみ」のため外部AIへは送信していません。この質問は端末内の集計では解釈できません。入力欄上の送信先を切り替えると、外部AIで回答できます。':withFiles?'添付ファイルの解析には外部AIの設定が必要です。右上の歯車から「外部AIを使用する」・AIプロキシURL・AIアクセスキーを設定してください。':'この質問は端末内の集計では解釈できません。外部AIを設定すると、自由な言い回しの質問や予定・タスクの追加提案ができます。'});
       persist();return;
     }
 
@@ -535,7 +556,7 @@
     const think=showThinking(atts.length?'添付を処理しています…':'考えています…');
     const retry=()=>runRemote(req);
     try{
-      let built={images:[],texts:[],stats:{images:0,chars:0,imageBytes:0}};
+      let built={images:[],texts:[],pdfs:[],stats:{images:0,chars:0,imageBytes:0}};
       if(atts.length){
         built=await Files().buildAll(atts,{onProgress:t=>think.set(t)});
         think.set('AIに送信して解析しています…');
@@ -549,6 +570,7 @@
         context:ctx.payload||{today:todayISO(),tasks:[],events:[]},
         attachments:[
           ...built.images.map(i=>({kind:'image',name:i.name,label:i.label,data:i.data,detail:i.detail})),
+          ...(built.pdfs||[]).map(p=>({kind:'pdf',name:p.name,label:p.label,data:p.data})),
           ...built.texts.map(t=>({kind:'text',name:t.name,label:t.label,text:t.text}))
         ],
         options:{actions:cfg().actionsEnabled!==false}};
@@ -560,12 +582,13 @@
       const sentBits=[];
       if(!ctx.off&&ctx.payload)sentBits.push(`予定${ctx.counts.events}件・タスク${ctx.counts.tasks}件`);
       if(built.stats.images)sentBits.push(`画像${built.stats.images}枚`);
+      if((built.pdfs||[]).length)sentBits.push(`PDF原本${built.pdfs.length}件`);
       if(built.texts.length)sentBits.push(`テキスト約${built.stats.chars.toLocaleString()}文字`);
       /* 「参照」は、AIが言った内容ではなく、実際に送ったデータから作る（送っていないものを参照したことにしない） */
       const refs=[];
       if(!ctx.off&&ctx.payload){if(ctx.counts.events)refs.push('予定');if(ctx.counts.tasks)refs.push('タスク')}
       names.forEach(n=>refs.push(n));
-      const m=addBot({id:mid(),role:'bot',mode:'remote',model:data.model||'',text:String(data.answer),ts:Date.now(),
+      const m=addBot({id:mid(),role:'bot',mode:'remote',provider:data.provider||AI().providerOf(cfg()),model:data.model||'',fallbackFrom:data.fallbackFrom||'',text:String(data.answer),ts:Date.now(),
         stations:meta.stations||[],refs,attachments:userMsg.attachments,actions:acts,sent:sentBits.join('・')});
       afterBot(m);
     }catch(e){
