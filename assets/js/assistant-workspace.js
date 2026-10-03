@@ -521,7 +521,7 @@
   function errText(e){
     if(e&&e.code==='BAD_REQUEST'&&/query is required/.test(e.detail||''))return 'Vercel 側の API が古い版です（AI Workspace 未対応）。最新の api/ai.js をデプロイしてください。';
     const base=ERR[e&&e.code]||(e&&e.message)||'AIへの問い合わせに失敗しました。';
-    const det=(e&&e.detail&&/^(GEMINI_ERROR|GEMINI_UNREACHABLE|MODEL_UNAVAILABLE|OPENAI_ERROR|OPENAI_UNREACHABLE|EMPTY_RESPONSE|BLOCKED|TRUNCATED|GEMINI_QUOTA)$/.test(e.code))?`\n（詳細：${String(e.detail).slice(0,160)}）`:'';
+    const det=(e&&e.detail&&/^(GEMINI_ERROR|GEMINI_UNREACHABLE|MODEL_UNAVAILABLE|OPENAI_ERROR|OPENAI_UNREACHABLE|EMPTY_RESPONSE|BLOCKED|TRUNCATED|GEMINI_QUOTA)$/.test(e.code))?`\n（詳細：${String(e.detail).replace(/(AIza|sk-)[^\s,;)]*/g,'[key]').replace(/key=\S*/gi,'').slice(0,160)}）`:'';
     return base+det+(e&&e.fallbackTried===true?'\n（設定に従い OpenAI への切り替えも試みましたが、利用できませんでした）':'');
   }
   const needsCfg=e=>/^ACCESS_|^NO_ENDPOINT|^NETWORK$|^GEMINI_KEY|^OPENAI_KEY|^GEMINI_QUOTA$|^OPENAI_QUOTA$|^PROVIDER_INVALID$/.test(e&&e.code||'');
