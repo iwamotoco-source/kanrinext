@@ -1,9 +1,9 @@
 /* 工事管理next — オフライン用キャッシュ（GitHub Pages / PWA 時のみ有効）
  * 方針: 同一オリジンGETはネットワーク優先（HTTPキャッシュも再検証）→ 失敗時のみキャッシュ。
  * 版を上げると install で全ファイルをサーバーから取り直し、activate で旧キャッシュを削除する。 */
-const CACHE='kouji-next-v13-ui1';
+const CACHE='kouji-next-v14-ui2';
 const CORE=['./','./index.html','./manifest.json','./icons/icon-64.png','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png',
-'./assets/css/app.css','./assets/css/calendar.css','./assets/css/mobile.css','./assets/css/assistant.css','./assets/vendor/leaflet/leaflet.css','./assets/vendor/leaflet/leaflet.js',
+'./assets/css/app.css','./assets/css/calendar.css','./assets/css/mobile.css','./assets/css/ui2.css','./assets/css/assistant.css','./assets/vendor/leaflet/leaflet.css','./assets/vendor/leaflet/leaflet.js',
 './assets/js/stations.js','./assets/js/core.js','./assets/js/holidays.js','./assets/js/recur.js','./assets/js/calendar.js','./assets/js/event-editor.js','./assets/js/ics.js','./assets/js/ics-original.js','./assets/js/crypto-sync.js','./assets/js/tool-cable-route.js','./assets/js/mobile-fixes.js','./assets/js/assistant.js','./assets/js/assistant-storage.js','./assets/js/assistant-files.js','./assets/js/assistant-voice.js','./assets/js/assistant-actions.js','./assets/js/assistant-workspace.js','./assets/js/app.js',
 './tools/pdf-editor.html','./tools/excel-images.html','./tools/drawing-scale.html','./tools/quantity-takeoff.html','./tools/cable-route.html','./tools/electrical-calc.html','./tools/odakyu-fare.html',
 './tools/lib/jszip.min.js','./tools/lib/jspdf.umd.min.js','./tools/lib/pdf.min.js','./tools/lib/pdf.worker.min.js'];

@@ -1,0 +1,296 @@
+/* =========================================================
+   工事管理next — UI 2 (2026-10)  落ち着いた紙の質感
+   app.css の変数（暖色ニュートラル + テラコッタ）を前提に、部品と構成を上書きする。
+   読み込みは最後（ics.js）。既存のid/classは変えず、見た目と並びだけを変える。
+   ========================================================= */
+html,body{font-size:14px;line-height:1.55;letter-spacing:.005em}
+h1,h2,h3{font-weight:600}
+.viewTitle,.dayHead .date,.panelHead h3,.mHead h2,.aiWelcome h3,.aiWsTitle h2,.brandName,.calRange,.paneHead h2,.setSec h3,.peekIn h3,.lvDate b{font-family:var(--font-serif);font-weight:600;letter-spacing:.01em}
+
+/* ---------- buttons / inputs ---------- */
+.btn{height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);transition:background .12s,border-color .12s,transform .06s}
+.btn:hover{background:var(--surface-2);border-color:var(--line-2)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 1px 2px rgba(120,50,20,.25)}
+.btn.primary:hover{background:var(--accent);filter:brightness(1.07)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--surface-3);color:var(--ink)}
+.btn.sm{height:30px;padding:0 11px;border-radius:9px}
+.btn.icon{width:34px;padding:0}.btn.icon.sm{width:30px}
+.seg{border:0;border-radius:11px;background:var(--surface-3);padding:3px;gap:2px}
+.seg button{height:28px;border:0;border-radius:8px;padding:0 12px;color:var(--ink-2)}
+.seg button:hover{background:transparent;color:var(--ink)}
+.seg button[aria-pressed="true"],[data-theme="dark"] .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(60,40,20,.14)}
+.input,.field input,.field select,.field textarea{height:38px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);padding:0 12px}
+.field textarea{padding:9px 12px}
+.input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+:focus-visible{outline-color:var(--accent)}
+.st{border-radius:7px;height:24px}
+.st b{font-size:11px}
+kbd{border-radius:6px}
+::-webkit-scrollbar-thumb{background:var(--line-2)}
+
+/* ---------- rail ---------- */
+.rail{background:var(--surface-2);border-right:1px solid var(--line)}
+.brand{border-bottom:0;padding:0 16px;height:64px}
+.brandMark{width:32px;height:32px;border-radius:10px;font-family:var(--font-serif);font-size:16px;box-shadow:0 1px 2px rgba(120,50,20,.3)}
+.brandName{font-size:16px}
+.railScroll{padding:4px 10px 10px}
+.navGroup+.navGroup{margin-top:18px}
+.navHead{padding:4px 10px;font-size:11.5px;letter-spacing:.04em;color:var(--ink-3)}
+.nav{height:38px;border-radius:10px;padding:0 11px;font-size:14px;color:var(--ink-2);gap:11px}
+.nav:hover{background:var(--surface-3);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
+.nav[aria-current="page"]::before{display:none}
+.nav[aria-current="page"] svg.i{color:var(--accent)}
+.railFoot{border-top:1px solid var(--line);padding:8px 10px 10px}
+
+/* ---------- topbar ---------- */
+.topbar{border-bottom:0;background:transparent;padding:0 18px;height:60px;gap:10px}
+.viewTitle{font-size:19px}
+.omni{height:38px;border-radius:999px;background:var(--surface);border:1px solid var(--line);padding:0 14px;box-shadow:var(--shadow-card)}
+.omni:hover{border-color:var(--line-2)}
+.syncPill{height:32px;border-radius:999px;background:var(--surface);border-color:var(--line)}
+.aiTopBtn{border-radius:999px!important;background:var(--accent-soft)!important;border-color:var(--accent-line)!important;color:var(--accent)!important;height:36px}
+[data-theme="dark"] .aiTopBtn{color:var(--accent)!important}
+
+/* ---------- home ---------- */
+.home{padding:6px 24px 36px;gap:18px;max-width:1500px;margin:0 auto}
+.dayHead{align-items:center;gap:16px 28px;padding:6px 2px 2px}
+.dayHead .date{font-size:30px;line-height:1.15}
+.dayHead .date .greet{display:block;font-family:var(--font);font-size:13px;font-weight:400;color:var(--accent);letter-spacing:.04em;margin-bottom:6px}
+.dayHead .date small{font-family:var(--font);margin-top:7px}
+.wxNow{border-left:0;padding-left:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:8px 16px 8px 12px;box-shadow:var(--shadow-card)}
+.wxNow .wxIcon{color:var(--accent)}
+.wxStrip{border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-card)}
+.wxCell{border-right:0;padding:8px 10px}
+.wxCell svg{color:var(--ink-2)}
+.wxCell .p{color:var(--sat)}
+.wxCell.sat .t{color:var(--sat)}
+.wxTools{border-left:1px solid var(--line);padding:6px}
+.wxTools button{border-radius:8px}
+.wxTools button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.quickRow{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.qTile{display:flex;align-items:center;gap:13px;text-align:left;padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-card);transition:transform .08s,border-color .12s,background .12s;min-width:0}
+.qTile:hover{border-color:var(--accent-line);background:var(--surface)}
+.qTile:active{transform:scale(.985)}
+.qIc{width:38px;height:38px;border-radius:12px;background:var(--surface-3);color:var(--ink-2);display:grid;place-items:center;flex:0 0 auto}
+.qIc svg.i{width:20px;height:20px}
+.qTx{display:flex;flex-direction:column;min-width:0}
+.qTx b{font-size:14.5px;font-weight:600}
+.qTx small{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qAi .qIc{background:var(--accent);color:var(--accent-ink)}
+.qAi{border-color:var(--accent-line);background:linear-gradient(135deg,var(--accent-soft),var(--surface) 70%)}
+.panel{border-radius:20px;border:1px solid var(--line);box-shadow:var(--shadow-card)}
+.panelHead{border-bottom:0;padding:16px 18px 8px}
+.panelHead h3{font-size:17px}
+.panelHead h3 small{font-family:var(--font)}
+.agDay{padding:12px 18px 4px;background:var(--surface)}
+.agDay b{font-family:var(--font-serif);font-size:14.5px}
+.agItem{margin:2px 8px;padding:9px 10px;border-radius:12px;grid-template-columns:62px 4px 1fr}
+.agItem:hover{background:var(--surface-2)}
+.agBar{border-radius:4px;width:4px}
+.agTitle{font-size:14px;font-weight:500}
+.agTime{color:var(--ink-2);font-weight:500}
+.curList{padding:6px 18px 18px}
+.empty{color:var(--ink-3)}
+.homeMap .mapSlot{margin:0 8px 8px;border-radius:14px;overflow:hidden}
+.homeMap .panelHead{padding-bottom:10px}
+
+/* task pane */
+.pane{background:var(--surface);border-left:1px solid var(--line)}
+.paneHead{border-bottom:0;height:60px}
+.paneHead h2{font-size:17px}
+.quickAdd{border-bottom:0;padding:4px 14px 12px}
+.taskTabs{background:var(--surface-3);padding:3px;border-radius:11px;gap:2px}
+.taskTabs button{height:26px;border-radius:8px}
+.taskTabs button[aria-pressed="true"],[data-theme="dark"] .taskTabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(60,40,20,.14)}
+.tRow{border-bottom:0;margin:1px 8px;padding:9px 8px 9px 8px;border-radius:12px}
+.tRow:hover{background:var(--surface-2)}
+.tCheck{width:20px;height:20px;border-width:1.6px}
+.tGroup{padding:14px 18px 4px}
+
+/* modals / menus / palette */
+.modal,.palette{border-radius:22px;border:1px solid var(--line);box-shadow:var(--shadow-pop)}
+.mHead{border-bottom:0;padding:18px 20px 8px}
+.mHead h2{font-size:19px}
+.mBody{padding:10px 20px 18px}
+.mFoot{border-top:0;padding:12px 20px 18px}
+.pop{border-radius:14px;border-color:var(--line)}
+.menu button{border-radius:9px;height:36px}
+.palIn{border-bottom:1px solid var(--line)}
+.palItem{border-radius:10px}
+.toast{border-radius:14px}
+.scrim{background:rgba(40,28,16,.40);backdrop-filter:blur(2px)}
+.setNav button{border-radius:10px;height:36px}
+.setNav button[aria-current="true"]{background:var(--surface-3);color:var(--ink);font-weight:600}
+.listEd{border-radius:14px}
+
+/* ---------- calendar ---------- */
+.calSide{background:var(--surface-2);border-right:1px solid var(--line);padding:16px 14px 22px}
+.calSide .btn.primary{height:40px;border-radius:12px}
+.miniGrid button{border-radius:50%}
+.miniGrid button.inRange{border-radius:8px}
+.miniGrid button.sat{color:var(--sat)}
+.catRow{border-radius:9px;height:32px}
+.calMain{background:var(--surface)}
+.calBar{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 18px;gap:10px}
+.calRange{font-size:21px}
+.calSearch{height:34px;border-radius:999px;padding:0 12px;border-color:var(--line)}
+.tgHead{border-bottom:1px solid var(--line)}
+.tgDay{border-left:0;padding:10px 8px 8px;flex-direction:column;align-items:flex-start;gap:2px}
+.tgDay .wd{font-size:12px;color:var(--ink-3)}
+.tgDay .n{font-family:var(--font-serif);font-size:22px;line-height:1.1;min-width:36px;height:36px;display:grid;place-items:center;border-radius:50%;margin-left:-6px;padding:0 6px}
+.tgDay.today{box-shadow:none}
+.tgDay.today .n{background:var(--accent);color:var(--accent-ink)}
+.tgDay.today .wd{color:var(--accent);font-weight:600}
+.tgDay.sat .wd,.tgDay.sat .n{color:var(--sat)}
+.tgDay.today.sat .n,.tgDay.today.sun .n,.tgDay.today.hol .n{color:var(--accent-ink)}
+.tgDay .hl{margin-left:0}
+.tgAll{border-bottom:1px solid var(--line)}
+.tgCol{border-left:1px solid var(--line)}
+.tgCol.today{background-color:color-mix(in srgb,var(--accent-soft) 40%,transparent)}
+.ev{border-radius:9px;padding:4px 8px 3px 10px;border:0;border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface));box-shadow:0 1px 2px rgba(60,40,20,.08)}
+[data-theme="dark"] .ev{background:color-mix(in srgb,var(--c) 28%,var(--surface))}
+.ev.free{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
+.ev.task{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
+.ev.selected{outline:2px solid var(--accent)}
+.nowLine{height:2px}
+.bar{border-radius:7px;height:22px}
+.bar.selected,.mi.selected{outline:2px solid var(--accent)}
+.mvHead div{color:var(--ink-3);font-size:12px;padding:8px}
+.mvHead .sat{color:var(--sat)}
+.mvWeek{border-bottom:1px solid var(--line)}
+.mvCell.o{background:color-mix(in srgb,var(--surface-2) 70%,var(--surface))}
+.dn{min-width:28px;height:28px;border-radius:50%;font-size:13px}
+.mvCell.sat .dn{color:var(--sat)}
+.mvCell.today .dn,.mvCell.today.sat .dn{color:var(--accent-ink)}
+.mi{border-radius:7px;height:23px}
+.lvDate b{font-size:22px}
+.lvItem{border-radius:12px;margin:0 8px}
+.peek{border-radius:18px;overflow:hidden}
+.peekBar{border-radius:0;height:5px}
+.quick{border-radius:18px}
+.rem{border-radius:16px}
+
+/* ---------- AI workspace ---------- */
+.aiWs{background:var(--bg)}
+.aiWsSide{background:var(--surface-2);border-right:1px solid var(--line)}
+.aiSideHead{border-bottom:0;padding:16px 14px 10px}
+.aiSideHead b{font-family:var(--font-serif);font-size:15px}
+.aiHistRow{border-radius:10px}
+.aiHistRow.cur{background:var(--surface);box-shadow:var(--shadow-card)}
+.aiHistRow:hover{background:var(--surface-3)}
+.aiSideFoot{border-top:1px solid var(--line)}
+.aiWsHead{background:transparent;border-bottom:0;padding-bottom:6px}
+.aiMark{border-radius:50%;background:var(--accent);box-shadow:0 1px 3px rgba(120,50,20,.35);font-family:var(--font-serif);font-weight:700}
+.aiWsTitle h2{font-size:16px}
+.aiWsInner{max-width:780px;padding:22px 18px 14px;gap:20px}
+.aiWelcome h3{font-size:25px;line-height:1.35;margin:10px 0 10px}
+.aiCaps>div{border-radius:16px;background:var(--surface);box-shadow:var(--shadow-card);padding:13px 15px}
+.aiCaps.ops>div{background:var(--accent-soft);border-color:var(--accent-line);box-shadow:none}
+.aiSug{height:36px;border-radius:999px;background:var(--surface);border-color:var(--line-2);padding:0 15px}
+.aiSug:hover{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent)}
+/* 会話: ユーザーは淡い吹き出し、AIは地の文のまま読ませる */
+.aiBub{border-radius:18px;padding:11px 16px;line-height:1.85;font-size:14.5px}
+.aiM.user .aiBub{background:var(--surface-3);border-color:transparent;color:var(--ink);border-bottom-right-radius:6px}
+.aiM.bot .aiBub{background:transparent;border-color:transparent;padding:2px 2px;max-width:min(100%,720px)}
+.aiM.err .aiBub{background:color-mix(in srgb,var(--danger) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--danger) 45%,var(--line));padding:11px 16px}
+.aiM.thinking .aiBub{padding:6px 2px}
+.aiBadge{background:var(--surface-3);border-color:transparent}
+.aiBadge.local{background:color-mix(in srgb,var(--ok) 12%,var(--surface));border-color:transparent}
+.aiBadge.remote{background:var(--accent-soft);border-color:transparent}
+.aiChip{border-radius:10px;background:var(--surface);box-shadow:var(--shadow-card);border-color:var(--line)}
+.aiChip .tag{border-radius:0}
+.apBox{border-radius:18px;border-color:var(--accent-line);box-shadow:var(--shadow-card)}
+.apBoxHead{background:var(--accent-soft);border-bottom:1px solid var(--accent-line);padding:11px 14px}
+.apCard{padding:11px 14px}
+.apType{border-radius:6px}
+.apFoot{background:var(--surface-2)}
+.apEdit input,.apEdit select{border-radius:9px}
+/* 入力欄: 1枚のカードとして画面下に浮かせる */
+.aiWsComposer{background:transparent;border-top:0;padding:6px 14px calc(12px + env(safe-area-inset-bottom));max-width:780px;width:100%;margin:0 auto;gap:8px}
+.aiWs.kbOpen .aiWsComposer{padding-bottom:10px}
+.aiPill{height:30px;border-radius:999px;background:var(--surface)}
+.aiPill.on{background:var(--accent-soft)}
+.aiInRow{background:var(--surface);border:1px solid var(--line-2);border-radius:28px;padding:6px 6px 6px 10px;gap:4px;box-shadow:var(--shadow-card);align-items:flex-end}
+.aiInRow:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-card)}
+.aiInRow textarea,.aiInRow textarea:focus{border:0;background:transparent;box-shadow:none;border-radius:0;padding:10px 8px;min-height:42px}
+.aiRound{border-radius:50%;width:40px;height:40px;flex-basis:40px}
+.aiRound.btn:not(.primary){border-color:transparent;background:transparent;color:var(--ink-2)}
+.aiRound.btn:not(.primary):hover{background:var(--surface-3)}
+.aiRound.primary{box-shadow:0 1px 2px rgba(120,50,20,.35)}
+.aiDest{border-color:var(--line);background:var(--surface-3);padding:2px;border-radius:999px}
+.aiDest button{border-radius:999px}
+.aiDest button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(60,40,20,.14)}
+.aiDest button[data-dest=local].on{background:var(--surface);color:var(--ok)}
+.aiDest button[data-dest=remote].on,.aiDest button[data-dest=gemini].on{color:var(--accent)}
+.aiDrop{border-radius:22px}
+
+/* ---------- smartphone ---------- */
+@media (max-width:820px){
+  html,body{font-size:14.5px}
+  .topbar{height:54px;padding:0 12px}
+  .viewTitle{font-size:18px}
+  .omni{border-radius:50%;width:38px;height:38px;flex-basis:38px;box-shadow:none}
+  .home{padding:2px 14px 28px!important;gap:14px!important}
+  .dayHead .date{font-size:26px!important;white-space:normal!important}
+  .dayHead .date .greet{font-size:12.5px}
+  .dayHead{display:flex!important;flex-direction:column;align-items:stretch!important;gap:12px!important}
+  .wxNow{border:1px solid var(--line)!important;padding:8px 14px 8px 10px!important;width:auto!important}
+  .wxStrip{border-radius:16px!important}
+  .quickRow{gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .qTile{flex-direction:column;align-items:flex-start;gap:9px;padding:12px;border-radius:16px}
+  .qTx small{display:none}
+  .qTx b{font-size:13px}
+  .qIc{width:34px;height:34px;border-radius:11px}
+  .panel{border-radius:20px}
+  .panelHead{padding:14px 14px 6px!important}
+  .agItem{margin:1px 6px;grid-template-columns:52px 4px minmax(0,1fr)!important}
+  .curList{padding:6px 14px 16px!important}
+  .modal,.palette{border-radius:0}
+  .mHead{padding:14px 16px 6px}
+  /* 下タブ: 画面下に浮かぶカプセル */
+  .tabbar{left:12px;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));height:62px!important;padding:6px;border:1px solid var(--line);border-radius:26px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow-pop);gap:2px}
+  .tabbar button{border-radius:20px;gap:2px;color:var(--ink-3);font-size:10.5px!important}
+  .tabbar button[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .tabbar svg{width:21px!important;height:21px!important}
+  .main{padding-bottom:calc(82px + env(safe-area-inset-bottom))!important}
+  .rail{bottom:0!important;width:min(86vw,310px)!important}
+  body.paneOpenM .pane{bottom:0!important;border-radius:22px 22px 0 0}
+  .toasts{bottom:calc(86px + env(safe-area-inset-bottom))}
+  /* calendar */
+  .calBar{padding:8px 12px!important}
+  .calRange{font-size:18px!important}
+  .tgDay .n{font-size:17px;min-width:30px;height:30px;margin-left:0}
+  .tgDay{align-items:center}
+  .calTools .seg{min-width:260px}
+  /* AI */
+  .aiWsInner{padding:14px 14px 10px;gap:16px}
+  .aiWelcome h3{font-size:22px}
+  .aiWsComposer{padding:4px 10px calc(10px + env(safe-area-inset-bottom))}
+  .aiBub{font-size:15px}
+}
+@media (max-width:430px){
+  .dayHead .date{font-size:24px!important}
+  .tabbar{left:8px;right:8px}
+}
+@media (orientation:landscape) and (max-height:520px) and (max-width:950px){
+  .tabbar{height:52px!important}
+  .main{padding-bottom:calc(68px + env(safe-area-inset-bottom))!important}
+}
+
+/* ---------- 微調整 ---------- */
+.agTime small{white-space:nowrap}
+.panelHead h3{min-width:0}
+.panelHead h3 small{display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+@media (max-width:820px){
+  .agItem{grid-template-columns:58px 4px minmax(0,1fr)!important}
+  .agTime{font-size:11.5px}.agTime small{font-size:10.5px;letter-spacing:-.02em}
+  .aiTopBtn{width:auto!important;padding:0 12px!important;gap:6px}
+  .aiTopBtn .aiLbl{display:inline!important}
+  .panelHead h3 small{display:block;white-space:normal}
+  .aiCaps>div{padding:11px 13px}
+  .aiCaps span{font-size:12.5px}
+  .aiWelcome h3{font-size:21px}
+}

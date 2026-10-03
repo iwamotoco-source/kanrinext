@@ -120,7 +120,7 @@
         <div class="aiChips" id="aiChips"></div>
         <div class="aiInRow">
           <button class="btn icon aiRound" type="button" id="aiPlus" aria-label="添付（写真・カメラ・ファイル）" title="添付">${icon('plus')}</button>
-          <textarea id="aiInput" rows="1" placeholder="質問・依頼を入力（例：明日10時に厚木で現場調査）" autocomplete="off" enterkeyhint="send"></textarea>
+          <textarea id="aiInput" rows="1" placeholder="工事管理next AIに質問・依頼" autocomplete="off" enterkeyhint="send"></textarea>
           <button class="btn icon aiRound" type="button" id="aiMic" aria-label="音声入力" title="音声入力">${ic('mic')}</button>
           <button class="btn primary icon aiRound" type="button" id="aiSend" aria-label="送信" title="送信">${ic('send')}</button>
         </div>

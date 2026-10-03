@@ -5,7 +5,7 @@
 
 /* ---------- テーマ・レイアウト ---------- */
 function resolvedTheme(){const t=state.settings.theme||'dark';return t==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t}
-function applyTheme(){const t=resolvedTheme();document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#eceeeb':'#16181b';const f=$('toolFrame');if(f&&f.src){try{f.contentWindow.postMessage({type:'kouji-theme',theme:t},'*')}catch(e){}}if(railMap)setBaseLayer()}
+function applyTheme(){const t=resolvedTheme();document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f4f1ea':'#1d1b18';const f=$('toolFrame');if(f&&f.src){try{f.contentWindow.postMessage({type:'kouji-theme',theme:t},'*')}catch(e){}}if(railMap)setBaseLayer()}
 function paneKey(){return currentRoute()==='calendar'?'paneOpenCal':'paneOpen'}
 function applyLayout(){document.body.classList.toggle('railCollapsed',!!localCfg.leftCollapsed);const k=paneKey();const open=k==='paneOpenCal'?localCfg.paneOpenCal===true:localCfg.paneOpen!==false;document.body.classList.toggle('paneClosed',!open)}
 function isMobile(){return innerWidth<=820}
@@ -42,7 +42,8 @@ function handleRoute(){
 /* ---------- ホーム ---------- */
 function renderHome(){
   const t=todayISO(),d=parseISO(t),h=holidayName(t);
-  $('homeDate').innerHTML=`${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}曜日<small>${d.getFullYear()}年${h?'・'+esc(h):''}・第${isoWeek(t)}週</small>`;
+  const hr=new Date().getHours();const greet=hr<4?'お疲れさまです':hr<11?'おはようございます':hr<17?'こんにちは':'お疲れさまです';
+  $('homeDate').innerHTML=`<span class="greet">${greet}</span>${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}曜日<small>${d.getFullYear()}年${h?'・'+esc(h):''}・第${isoWeek(t)}週</small>`;
   renderHomeAgenda();renderCurrent();
 }
 function renderHomeAgenda(){
@@ -318,6 +319,7 @@ function boot(){
   window.addEventListener('hashchange',handleRoute);
   $('menuBtn').onclick=()=>{if(isMobile())document.body.classList.toggle('railOpenM');else{localCfg.leftCollapsed=!localCfg.leftCollapsed;saveLocal();applyLayout();setTimeout(()=>{railMap?.invalidateSize(false);if(currentRoute()==='calendar'&&cal.view==='month')renderCalendar()},60)}};
   $('railCollapseBtn').onclick=()=>{localCfg.leftCollapsed=!localCfg.leftCollapsed;saveLocal();applyLayout();setTimeout(()=>railMap?.invalidateSize(false),60)};
+  $$('#homeQuick [data-q]').forEach(b=>b.onclick=()=>{const q=b.dataset.q;if(q==='event')$('homeNewEvent').click();else if(q==='task'){togglePane(true);if(isMobile()){closeDrawers();document.body.classList.add('paneOpenM')}setTimeout(()=>$('taskQuickInput')?.focus(),60)}else if(q==='ai'){try{(window.KoujiAI&&KoujiAI.open)?KoujiAI.open():toast('AIを読み込み中です')}catch(e){}}});
   $('scrimSide').onclick=closeDrawers;$('paneBtn').onclick=()=>togglePane();$('paneClose').onclick=()=>togglePane(false);$('navTasks').onclick=()=>{togglePane(true);if(isMobile())closeDrawers(),document.body.classList.add('paneOpenM');setTimeout(()=>$('taskQuickInput').focus(),50)};
   $('omniBtn').onclick=openPalette;$('settingsBtn').onclick=()=>openSettings();$('syncBtn').onclick=()=>syncNow('manual');
   $$('#tabbar [data-route]').forEach(b=>b.onclick=()=>routeTo(b.dataset.route));
