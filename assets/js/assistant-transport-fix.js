@@ -2,7 +2,8 @@
 /* 工事管理next AI通信補正
  * - 旧 ?key=... を端末内で自動移行
  * - APP_ACCESS_TOKENをURLではなく X-App-Key ヘッダーで送る
- * - SafariでのURL履歴/ログへのトークン露出を避ける
+ * - AI設定画面に専用の「AIアクセスキー」欄を追加
+ * - SafariでURL履歴/ログへのトークン露出を避ける
  */
 (function(){
   const nativeFetch=window.fetch.bind(window);
@@ -10,19 +11,67 @@
   function isAiUrl(u){
     return u.hostname==='kanrinext.vercel.app' && u.pathname.replace(/\/+$/,'')==='/api/ai';
   }
+  function cleanKey(v){return String(v||'').replace(/[\r\n]+/g,'').trim()}
   function migrate(){
     try{
       if(!window.localCfg?.ai?.endpoint)return;
       const u=new URL(localCfg.ai.endpoint,location.href);
       if(!isAiUrl(u))return;
-      const qKey=u.searchParams.get('key');
+      const qKey=cleanKey(u.searchParams.get('key'));
       if(qKey&&!localCfg.ai.accessKey)localCfg.ai.accessKey=qKey;
-      if(qKey){
+      if(u.searchParams.has('key')){
         u.searchParams.delete('key');
         localCfg.ai.endpoint=u.toString().replace(/\?$/,'');
         saveLocal?.();
       }
     }catch(e){}
+  }
+
+  function enhanceSettings(root=document){
+    const ep=root.querySelector?.('#aiEndpoint');
+    if(!ep||root.querySelector('#aiAccessKey'))return;
+    migrate();
+    try{
+      const u=new URL(ep.value||'https://kanrinext.vercel.app/api/ai',location.href);
+      if(isAiUrl(u)&&u.searchParams.has('key')){
+        const k=cleanKey(u.searchParams.get('key'));
+        if(k&&!localCfg.ai.accessKey)localCfg.ai.accessKey=k;
+        u.searchParams.delete('key');
+        ep.value=u.toString().replace(/\?$/,'');
+      }
+    }catch(e){}
+
+    const field=document.createElement('div');
+    field.className='field';field.style.marginTop='12px';
+    field.innerHTML='<label>AIアクセスキー</label><input id="aiAccessKey" type="password" autocomplete="off" placeholder="Vercelの APP_ACCESS_TOKEN"><span class="hint">OpenAIの sk-... キーではありません。Vercelで自分で設定した APP_ACCESS_TOKEN と同じ文字列を入力します。</span>';
+    const keyInput=field.querySelector('#aiAccessKey');
+    keyInput.value=localCfg?.ai?.accessKey||'';
+    ep.closest('.field')?.insertAdjacentElement('afterend',field);
+
+    const save=root.querySelector('#aiSave');
+    if(save&&!save.dataset.aiKeyBound){
+      save.dataset.aiKeyBound='1';
+      save.addEventListener('click',()=>{
+        localCfg.ai=localCfg.ai||{};
+        localCfg.ai.accessKey=cleanKey(keyInput.value);
+        try{
+          const u=new URL(ep.value,location.href);u.searchParams.delete('key');ep.value=u.toString().replace(/\?$/,'');
+        }catch(e){}
+        saveLocal?.();
+      },true);
+    }
+    const test=root.querySelector('#aiTest');
+    if(test&&!test.dataset.aiKeyBound){
+      test.dataset.aiKeyBound='1';
+      test.addEventListener('click',()=>{
+        localCfg.ai=localCfg.ai||{};
+        localCfg.ai.accessKey=cleanKey(keyInput.value);
+        try{
+          const u=new URL(ep.value,location.href);u.searchParams.delete('key');ep.value=u.toString().replace(/\?$/,'');
+        }catch(e){}
+        saveLocal?.();
+      },true);
+    }
   }
 
   window.fetch=function(input,init){
@@ -32,7 +81,7 @@
       const u=new URL(rawUrl,location.href);
       if(!isAiUrl(u))return nativeFetch(input,init);
 
-      let key=u.searchParams.get('key')||window.localCfg?.ai?.accessKey||'';
+      let key=cleanKey(u.searchParams.get('key')||window.localCfg?.ai?.accessKey||'');
       if(u.searchParams.has('key'))u.searchParams.delete('key');
 
       const opts=Object.assign({},init||{});
@@ -51,5 +100,7 @@
   };
 
   migrate();
-  window.addEventListener('load',migrate,{once:true});
+  const mo=new MutationObserver(()=>enhanceSettings(document));
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+  window.addEventListener('load',()=>{migrate();enhanceSettings(document)},{once:true});
 })();
