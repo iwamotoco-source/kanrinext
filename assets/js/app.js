@@ -254,7 +254,7 @@ function openSettings(tab='general'){
      <div class="field"><label>稼働時間</label><div class="row" style="flex-wrap:nowrap"><input type="time" name="ws" step="900" value="${cs.workStart}"><span>〜</span><input type="time" name="we" step="900" value="${cs.workEnd}"></div></div>
      <div class="field"><label>既定の通知</label><select name="rem">${REMINDER_OPTS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>
      <div class="field full"><label class="check"><input type="checkbox" name="wn" ${cs.weekNumbers?'checked':''}>週番号を表示する</label><label class="check"><input type="checkbox" name="hol" ${cs.showHolidays?'checked':''}>日本の祝日を表示する</label><label class="check"><input type="checkbox" name="tk" ${cs.showTasks?'checked':''}>期日のあるタスクをカレンダーに表示する</label></div>
-     <div class="field full"><label>通知</label><div class="row"><span class="hint" id="notifState"></span><button class="btn sm" type="button" id="notifBtn">デスクトップ通知を許可</button></div><span class="hint">アプリを開いている間、予定の通知時刻にお知らせします（ブラウザを閉じている間は通知されません）。</span></div></div></section>
+     <div class="field full"><label>通知</label><div class="row"><span class="hint" id="notifState"></span><button class="btn sm" type="button" id="notifBtn">通知を許可</button><button class="btn sm hidden" type="button" id="notifTest">テスト通知</button></div><span class="hint">アプリを開いている間、予定の通知時刻にお知らせします（ブラウザを閉じている間は通知されません）。</span></div></div></section>
    <section class="setSec" data-sec="categories"><h3>予定の種別</h3><p class="hint">色はカレンダーとホームの予定に反映されます。仕事・プライベート・その他は削除できません。</p><div class="listEd" id="catEd"></div><button class="btn sm" type="button" id="addCat">${icon('plus')}種別を追加</button></section>
    <section class="setSec" data-sec="bookmarks"><h3>ブックマーク</h3><p class="hint">左のメニューに表示されます。</p><div class="listEd" id="bmEd"></div><button class="btn sm" type="button" id="addBm">${icon('plus')}ブックマークを追加</button></section>
    <section class="setSec" data-sec="sync"><h3>GitHub同期</h3><p class="hint">予定・タスク・設定をGitHubリポジトリ内のJSONファイルに保存し、パソコンとiPhoneなど複数の端末で共有します。最終更新が新しい方のデータを採用します。</p>
@@ -280,7 +280,8 @@ function openSettings(tab='general'){
     drawCats();drawBms();
     $('addCat').onclick=()=>{cats.push({id:uid('c'),name:'新しい種別',color:'#2f8f83',locked:false});drawCats();$$('[data-cn]',box).pop().select()};
     $('addBm').onclick=()=>{bms.push({title:'',url:'https://'});drawBms();$$('[data-bt]',box).pop().focus()};
-    const ns=()=>{const p='Notification'in window?Notification.permission:'unsupported';$('notifState').textContent={granted:'デスクトップ通知：許可済み',denied:'デスクトップ通知：ブロック中（ブラウザの設定から許可してください）',default:'デスクトップ通知：未設定',unsupported:'この環境はデスクトップ通知に未対応です（アプリ内に表示します）'}[p];$('notifBtn').classList.toggle('hidden',p!=='default')};ns();
+    const ns=()=>{const p='Notification'in window?Notification.permission:'unsupported';$('notifState').textContent={granted:'通知：許可済み',denied:'通知：ブロック中（ブラウザ／iPhoneの設定から許可してください）',default:'通知：未設定',unsupported:'この環境は通知に未対応です（iPhoneは「ホーム画面に追加」したアプリで使えます。アプリ内には表示します）'}[p];$('notifBtn').classList.toggle('hidden',p!=='default');$('notifTest').classList.toggle('hidden',p!=='granted')};ns();
+    $('notifTest').onclick=async()=>{const ok=await testNotify();toast(ok?'テスト通知を送りました（通知が出ない場合は、端末の通知設定を確認してください）':'通知を出せませんでした')};
     $('notifBtn').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}ns()};
     const readGh=()=>({enabled:f.ghEnabled.value==='true',owner:f.ghOwner.value.trim(),repo:f.ghRepo.value.trim(),branch:f.ghBranch.value.trim()||'main',path:f.ghPath.value.trim()||'data/kouji-next.json',token:f.ghToken.value.trim(),interval:+f.ghInterval.value||120});
     $('ghPull').onclick=async()=>{localCfg.github=Object.assign(readGh(),{enabled:true});saveLocal();await syncNow('pull');f.ghEnabled.value='true'};
@@ -361,6 +362,8 @@ function boot(){
     const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;
     const reloadWhenIdle=()=>{if(reloaded)return;/* AI Workspaceで入力・添付・応答待ち・録音中のときも再読込を待つ */if(modalOpen()||(window.KoujiAIWorkspace&&KoujiAIWorkspace.busyOrDirty&&KoujiAIWorkspace.busyOrDirty())){setTimeout(reloadWhenIdle,3000);return}reloaded=true;location.reload()};
     navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadCtrl)reloadWhenIdle()});
+    /* 通知をタップしたとき（service-worker.js から）: カレンダーの該当日を開く */
+    navigator.serviceWorker.addEventListener('message',ev=>{const d=ev.data;if(d&&d.type==='open-event'){try{location.hash='#calendar';if(d.date){cal.anchor=d.date;renderCalendar()}}catch(e){}}});
     navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(reg=>{
       document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});
     }).catch(()=>{});

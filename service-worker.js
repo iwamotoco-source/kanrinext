@@ -1,7 +1,7 @@
 /* 工事管理next — オフライン用キャッシュ（GitHub Pages / PWA 時のみ有効）
  * 方針: 同一オリジンGETはネットワーク優先（HTTPキャッシュも再検証）→ 失敗時のみキャッシュ。
  * 版を上げると install で全ファイルをサーバーから取り直し、activate で旧キャッシュを削除する。 */
-const CACHE='kouji-next-v22-voice';
+const CACHE='kouji-next-v23-notify';
 const CORE=['./','./index.html','./manifest.json','./icons/icon-64.png','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png',
 './assets/css/app.css','./assets/css/calendar.css','./assets/css/mobile.css','./assets/css/ui2.css','./assets/css/assistant.css','./assets/vendor/leaflet/leaflet.css','./assets/vendor/leaflet/leaflet.js',
 './assets/js/stations.js','./assets/js/avatar.js','./assets/avatar/i/idle.webp','./assets/avatar/i/smile.webp','./assets/avatar/s/idle.webp','./assets/avatar/s/greeting.webp','./assets/js/core.js','./assets/js/holidays.js','./assets/js/recur.js','./assets/js/calendar.js','./assets/js/event-editor.js','./assets/js/ics.js','./assets/js/ics-original.js','./assets/js/crypto-sync.js','./assets/js/tool-cable-route.js','./assets/js/mobile-fixes.js','./assets/js/assistant.js','./assets/js/assistant-storage.js','./assets/js/assistant-files.js','./assets/js/assistant-voice.js','./assets/js/assistant-tts.js','./assets/js/assistant-actions.js','./assets/js/assistant-workspace.js','./assets/js/app.js',
@@ -29,4 +29,14 @@ self.addEventListener('fetch',e=>{
       .then(r=>{if(r.ok){const cp=r.clone();caches.open(CACHE).then(c=>c.put(key,cp))}return r})
       .catch(()=>caches.match(key).then(r=>r||caches.match(e.request,{ignoreSearch:true})).then(r=>r||caches.match('./index.html')))
   );
+});
+
+/* 予定の通知をタップしたら、アプリを前面に出してカレンダーの該当日を開く */
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();const d=e.notification.data||{};
+  e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{
+    const c=cs.find(x=>'focus'in x)||cs[0];
+    if(c){try{c.postMessage({type:'open-event',date:d.date})}catch(_){}return c.focus()}
+    return self.clients.openWindow('./#calendar');
+  }));
 });

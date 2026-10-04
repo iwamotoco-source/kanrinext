@@ -304,8 +304,21 @@ function showReminder(o){
   el.querySelector('[data-x]').onclick=()=>el.remove();
   el.querySelector('[data-o]').onclick=()=>{el.remove();location.hash='#calendar';cal.anchor=o.date;cal.view=cal.view==='list'?'day':cal.view;renderCalendar()};
   el.querySelector('[data-s]').onclick=()=>{const f=loadJSON(FIRED_KEY,{});f['snooze:'+o.key]=Date.now()+5*60000;delete f[o.key+'@'+occStart(o).getTime()];saveJSON(FIRED_KEY,f);el.remove()};
-  try{if('Notification'in window&&Notification.permission==='granted'){const n=new Notification(o.title,{body:whenText(o)+'\n'+rel,icon:'./icons/icon-192.png',tag:o.key});n.onclick=()=>{window.focus();n.close()}}}catch(e){}
+  osNotify(o,whenText(o)+'\n'+rel);
 }
+/* OSの通知として表示。Service Worker 経由を優先する（iPhoneのホーム画面アプリ・Androidでは new Notification が使えないため）。
+   失敗したら従来の new Notification。どちらも許可済みのときだけ。アプリを閉じている間は届かない（Web Pushは未対応） */
+async function osNotify(o,body){
+  if(!('Notification'in window)||Notification.permission!=='granted')return false;
+  const opt={body,icon:'./icons/icon-192.png',badge:'./icons/icon-64.png',tag:o.key,renotify:true,data:{date:o.date,key:o.key}};
+  try{
+    const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
+    if(reg&&reg.showNotification){await reg.showNotification(o.title,opt);return true}
+  }catch(e){}
+  try{const n=new Notification(o.title,opt);n.onclick=()=>{window.focus();n.close()};return true}catch(e){}
+  return false;
+}
+function testNotify(){return osNotify({title:'テスト通知',key:'test-'+Date.now(),date:todayISO()},'この通知が見えれば、予定の通知も届きます')}
 function startReminders(){clearInterval(reminderTimer);checkReminders();reminderTimer=setInterval(()=>{checkReminders();updateNowLine()},30000)}
 function askNotifyPermission(){try{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}}
 
