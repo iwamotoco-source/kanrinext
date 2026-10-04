@@ -118,20 +118,27 @@
 
       if(mode==='pull'){
         if(remote){
-          applyPayload(remote.payload);
+          applyPayload(remote.payload);setSyncBase(remote.payload);
           if(encrypt&&!remote.encrypted)await putRemote(syncPayload(),remote.sha,{encrypt:true,pass});
         }else toast('GitHubに同期データがまだありません');
       }else if(mode==='push'){
-        await putRemote(local,remote?.sha||null,{encrypt,pass});
+        await putRemote(local,remote?.sha||null,{encrypt,pass});setSyncBase(local);
       }else if(!remote){
-        await putRemote(local,null,{encrypt,pass});
-      }else if((remote.payload?.updatedAt||0)>state.updatedAt){
-        applyPayload(remote.payload);
-        if(encrypt&&!remote.encrypted)await putRemote(syncPayload(),remote.sha,{encrypt:true,pass});
-      }else if((remote.payload?.updatedAt||0)<state.updatedAt){
-        await putRemote(local,remote.sha,{encrypt,pass});
-      }else if(encrypt&&!remote.encrypted){
-        await putRemote(local,remote.sha,{encrypt:true,pass});
+        await putRemote(local,null,{encrypt,pass});setSyncBase(local);
+      }else{
+        const pl=planSync(remote.payload);
+        if(pl.act==='apply'){
+          applyPayload(remote.payload);setSyncBase(remote.payload);
+          if(encrypt&&!remote.encrypted)await putRemote(syncPayload(),remote.sha,{encrypt:true,pass});
+        }else if(pl.act==='push'){
+          await putRemote(local,remote.sha,{encrypt,pass});setSyncBase(local);
+        }else if(pl.act==='merge'){
+          /* 両方の端末が変更していた: 1件ずつ合体して、両方へ反映（片方の変更が消えない） */
+          await putRemote(pl.payload,remote.sha,{encrypt,pass});applyPayload(pl.payload);setSyncBase(pl.payload);
+        }else{
+          if(!getSyncBase())setSyncBase(local);
+          if(encrypt&&!remote.encrypted)await putRemote(local,remote.sha,{encrypt:true,pass});
+        }
       }
       setSyncStatus('ok',encrypt?'暗号化同期済み':'同期済み');
       if(mode!=='auto')toast(encrypt?'暗号化してGitHubと同期しました':'GitHubと同期しました');

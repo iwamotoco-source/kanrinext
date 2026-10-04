@@ -38,7 +38,7 @@ const STATION_KANA={'新宿':'しんじゅく','南新宿':'みなみしんじ�
 const DEFAULT_CATEGORIES=[
   {id:'work',name:'仕事',color:'#3d6fd0',locked:true},{id:'private',name:'プライベート',color:'#8a5cc9',locked:true},{id:'other',name:'その他',color:'#6f7b86',locked:true}
 ];
-const DEFAULT_CAL_SETTINGS={weekStart:0,workDays:[1,2,3,4,5],workStart:'08:30',workEnd:'17:30',defaultReminder:15,showHolidays:true,showTasks:true,defaultDuration:60,weekNumbers:false};
+const DEFAULT_CAL_SETTINGS={weekStart:0,workDays:[1,2,3,4,5],workStart:'08:30',workEnd:'17:30',defaultReminder:15,showHolidays:true,showTasks:true,defaultDuration:60,weekNumbers:false,hiddenCats:[]};
 const DEFAULT_STATE={version:2,updatedAt:Date.now(),tasks:[],events:[],categories:DEFAULT_CATEGORIES,bookmarks:[],
   settings:{theme:'dark',weather:{name:'町田市',lat:35.5486,lon:139.4467},routes:{home:'〒194-0036 東京都町田市木曽東1丁目36-26',office:'〒194-0021 東京都町田市中町3丁目4-3'},calendar:DEFAULT_CAL_SETTINGS}};
 const DEFAULT_LOCAL={deviceId:'dev-'+Math.random().toString(36).slice(2)+Date.now().toString(36),leftCollapsed:false,rightCollapsed:false,paneOpen:true,calSide:true,calView:'week',hiddenCats:[],navClosed:{},
@@ -125,7 +125,7 @@ function migrateState(s){
   if(!Array.isArray(s.categories)||!s.categories.length)s.categories=clone(DEFAULT_CATEGORIES);
   if(!Array.isArray(s.bookmarks))s.bookmarks=[];if(!Array.isArray(s.events))s.events=[];if(!Array.isArray(s.tasks))s.tasks=[];
   s.settings=Object.assign(clone(DEFAULT_STATE.settings),s.settings||{});
-  s.settings.calendar=Object.assign(clone(DEFAULT_CAL_SETTINGS),s.settings.calendar||{});
+  s.settings.calendar=Object.assign(clone(DEFAULT_CAL_SETTINGS),s.settings.calendar||{});if(!Array.isArray(s.settings.calendar.hiddenCats))s.settings.calendar.hiddenCats=[];
   s.settings.weather=s.settings.weather||clone(DEFAULT_STATE.settings.weather);s.settings.routes=s.settings.routes||clone(DEFAULT_STATE.settings.routes);
   /* 予定：旧形式 {date,start,end} を保持したまま拡張フィールドを補完（旧バージョンでも表示できる互換形式） */
   s.events.forEach(e=>{e.id=e.id||uid('e');if(!e.date)e.date=todayISO();if(e.allDay===undefined)e.allDay=!e.start;if(!e.endDate)e.endDate=e.date;if(e.start&&!e.end){e.end=fromMin(Math.min(toMin(e.start)+60,24*60-1))}
@@ -137,6 +137,8 @@ function initState(){
   state=migrateState(loadJSON(STATE_KEY,null));
   localCfg=Object.assign(clone(DEFAULT_LOCAL),loadJSON(LOCAL_KEY,{})||{});localCfg.github=Object.assign(clone(DEFAULT_LOCAL.github),localCfg.github||{});
   if(!localCfg.deviceId)localCfg.deviceId=DEFAULT_LOCAL.deviceId;
+  /* 種別の表示/非表示は端末ごとではなく同期データへ移した（初回だけ、この端末の旧設定を引き継ぐ） */
+  if(!state.settings.calendar.hiddenCatsInit){if(Array.isArray(localCfg.hiddenCats)&&localCfg.hiddenCats.length)state.settings.calendar.hiddenCats=[...localCfg.hiddenCats];state.settings.calendar.hiddenCatsInit=true}
   if(!state.tasks.length){const old=loadJSON(OLD_TASK_KEY,[]);if(Array.isArray(old)&&old.length){state.tasks=old.map(t=>({...t,date:t.dueDate||t.due||'',time:t.dueTime||''}));state.updatedAt=Date.now()}}
   saveJSON(STATE_KEY,state);saveLocal();
 }
@@ -157,15 +159,70 @@ function b64utf8(txt){const bytes=new TextEncoder().encode(txt);let bin='';for(l
 async function ghPut(payload,sha){const g=localCfg.github;const body={message:`工事管理next 自動同期 ${new Date().toLocaleString('ja-JP')}`,content:b64utf8(JSON.stringify(payload,null,2)),branch:g.branch||'main'};if(sha)body.sha=sha;const r=await fetch(ghUrl(),{method:'PUT',headers:{...ghHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GitHub '+r.status);return r.json()}
 function syncPayload(){return {app:'工事管理next',schema:2,updatedAt:state.updatedAt,deviceId:localCfg.deviceId,state,extras:{fare:loadJSON(FARE_KEY,{})}}}
 function applyPayload(p){if(!p?.state)return false;state=migrateState(p.state);state.updatedAt=p.updatedAt||state.updatedAt||Date.now();if(p.extras?.fare)saveJSON(FARE_KEY,p.extras.fare);saveState(false);emit();return true}
+
+/* ---------- 同期の合体（3-way merge） ----------
+   「前回同期した時点」(base) を覚えておき、両方の端末が変更していたら、1件ずつ（id単位）合体する。
+   片方だけが変えた項目はその変更を採用、両方が変えた項目だけ新しい端末の内容を採用、片方が削除して相手が未変更なら削除。 */
+const SYNC_BASE_KEY='koujiNextSyncBaseV1';
+function getSyncBase(){const b=loadJSON(SYNC_BASE_KEY,null);return b&&b.state&&typeof b.updatedAt==='number'?b:null}
+function setSyncBase(payload){try{if(payload&&payload.state)saveJSON(SYNC_BASE_KEY,{updatedAt:payload.updatedAt||0,state:migrateState(clone(payload.state))})}catch(e){}}
+const sameJ=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function mergeById(base,loc,rem,key,localNewer){
+  const idx=a=>{const m=new Map();(a||[]).forEach(x=>{const k=key(x);if(k!=null&&k!=='')m.set(k,x)});return m};
+  const B=idx(base),L=idx(loc),R=idx(rem),out=[],seen=new Set();
+  const pick=k=>{
+    const b=B.get(k),l=L.get(k),r=R.get(k);
+    if(l&&r){if(sameJ(l,r))return l;if(!b)return localNewer?l:r;const lc=!sameJ(l,b),rc=!sameJ(r,b);if(lc&&!rc)return l;if(rc&&!lc)return r;return localNewer?l:r}
+    if(l)return !b||!sameJ(l,b)?l:null;      /* 相手が削除：自分が未変更なら削除、変更していれば残す */
+    if(r)return !b||!sameJ(r,b)?r:null;      /* 自分が削除：相手が未変更なら削除、変更していれば残す */
+    return null;
+  };
+  [...L.keys(),...R.keys()].forEach(k=>{if(seen.has(k))return;seen.add(k);const v=pick(k);if(v)out.push(v)});
+  return out;
+}
+function merge3(b,l,r,localNewer){
+  const isO=x=>x&&typeof x==='object'&&!Array.isArray(x);
+  if(isO(l)&&isO(r)){const o={};new Set([...Object.keys(l),...Object.keys(r)]).forEach(k=>{const v=merge3(b&&b[k],l[k],r[k],localNewer);if(v!==undefined)o[k]=v});return o}
+  if(sameJ(l,r))return l;
+  if(b===undefined)return localNewer?l:r;
+  const lc=!sameJ(l,b),rc=!sameJ(r,b);
+  if(lc&&!rc)return l;if(rc&&!lc)return r;return localNewer?l:r;
+}
+function mergeStates(base,local,remote,localNewer){
+  const b=base||{},o=Object.assign({},localNewer?remote:local,localNewer?local:remote);
+  o.events=mergeById(b.events,local.events,remote.events,x=>x.id,localNewer);
+  o.tasks=mergeById(b.tasks,local.tasks,remote.tasks,x=>x.id,localNewer);
+  o.categories=mergeById(b.categories,local.categories,remote.categories,x=>x.id,localNewer);
+  o.bookmarks=mergeById(b.bookmarks,local.bookmarks,remote.bookmarks,x=>x.url,localNewer);
+  o.settings=merge3(b.settings,local.settings,remote.settings,localNewer);
+  return migrateState(o);
+}
+/* 同期の進め方を決める: none / apply(相手を取り込む) / push(自分を送る) / merge(合体して両方へ) */
+function planSync(rp){
+  rp=rp||{};const ru=rp.updatedAt||0,lu=state.updatedAt||0,base=getSyncBase();
+  if(base){
+    const lc=lu!==base.updatedAt,rc=ru!==base.updatedAt;
+    if(!lc&&!rc)return {act:'none'};
+    if(rc&&!lc)return {act:'apply'};
+    if(lc&&!rc)return {act:'push'};
+    const mu=Math.max(lu,ru)+1,st=mergeStates(base.state,state,migrateState(clone(rp.state)),lu>=ru);
+    st.updatedAt=mu;
+    return {act:'merge',payload:{app:'工事管理next',schema:2,updatedAt:mu,deviceId:localCfg.deviceId,state:st,extras:lu>=ru?{fare:loadJSON(FARE_KEY,{})}:(rp.extras||{})}};
+  }
+  return ru>lu?{act:'apply'}:ru<lu?{act:'push'}:{act:'none'};
+}
 async function syncNow(mode='auto'){
   if(!ghCfgValid()){setSyncStatus('','ローカル保存');if(mode!=='auto')toast('設定 → 同期 でGitHubの接続先を登録してください');return}
   setSyncStatus('busy','同期中');
   try{const remote=await ghGet(),local=syncPayload();
-    if(mode==='pull'){if(remote)applyPayload(remote.payload);else toast('GitHubに同期データがまだありません')}
-    else if(mode==='push')await ghPut(local,remote?.sha||null);
-    else if(!remote)await ghPut(local,null);
-    else if((remote.payload?.updatedAt||0)>state.updatedAt)applyPayload(remote.payload);
-    else if((remote.payload?.updatedAt||0)<state.updatedAt)await ghPut(local,remote.sha);
+    if(mode==='pull'){if(remote){applyPayload(remote.payload);setSyncBase(remote.payload)}else toast('GitHubに同期データがまだありません')}
+    else if(mode==='push'){await ghPut(local,remote?.sha||null);setSyncBase(local)}
+    else if(!remote){await ghPut(local,null);setSyncBase(local)}
+    else{const pl=planSync(remote.payload);
+      if(pl.act==='apply'){applyPayload(remote.payload);setSyncBase(remote.payload)}
+      else if(pl.act==='push'){await ghPut(local,remote.sha);setSyncBase(local)}
+      else if(pl.act==='merge'){await ghPut(pl.payload,remote.sha);applyPayload(pl.payload);setSyncBase(pl.payload)}
+      else if(!getSyncBase())setSyncBase(local)}
     setSyncStatus('ok','同期済み');if(mode!=='auto')toast('GitHubと同期しました');
   }catch(e){console.error(e);setSyncStatus('err','同期エラー');if(mode!=='auto')toast('GitHub同期に失敗しました（'+e.message+'）。トークンと権限を確認してください')}
 }

@@ -4,7 +4,9 @@
 'use strict';
 const cal={view:'week',anchor:todayISO(),sel:null,query:'',prevView:null,items:new Map(),scrollTop:null,days:[]};
 const SNAP=15;
-function hiddenCats(){return new Set(localCfg.hiddenCats||[])}
+/* 種別の表示/非表示は同期データ(state.settings.calendar)に保存する → 端末間で共通 */
+function hiddenCats(){return new Set(calSettings().hiddenCats||[])}
+function setHiddenCats(arr){calSettings().hiddenCats=[...arr];commit()}
 function visibleCats(){const h=hiddenCats();return new Set(state.categories.filter(c=>!h.has(c.id)).map(c=>c.id))}
 function hh(){const el=document.querySelector('.tg');return el?parseFloat(getComputedStyle(el).getPropertyValue('--hh'))||46:46}
 
@@ -156,7 +158,7 @@ function renderMini(){
 function renderCatList(){
   const el=$('catList');if(!el)return;const h=hiddenCats();const from=cal.days[0],to=cal.days[cal.days.length-1];const cnt={};occurrencesBetween(from,to).forEach(o=>cnt[o.categoryId]=(cnt[o.categoryId]||0)+1);
   el.innerHTML=state.categories.map(c=>`<div class="catRow ${h.has(c.id)?'':'on'}" role="checkbox" tabindex="0" aria-checked="${!h.has(c.id)}" style="--c:${c.color}" data-cat="${c.id}"><span class="catBox"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>${esc(c.name)}<span class="cnt num">${cnt[c.id]||''}</span></div>`).join('');
-  $$('[data-cat]',el).forEach(r=>{const t=()=>{const s=hiddenCats();s.has(r.dataset.cat)?s.delete(r.dataset.cat):s.add(r.dataset.cat);localCfg.hiddenCats=[...s];saveLocal();renderCalendar()};r.onclick=t;r.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();t()}}});
+  $$('[data-cat]',el).forEach(r=>{const t=()=>{const s=hiddenCats();s.has(r.dataset.cat)?s.delete(r.dataset.cat):s.add(r.dataset.cat);setHiddenCats(s);renderCalendar()};r.onclick=t;r.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();t()}}});
   $('togTasks').classList.toggle('on',!!calSettings().showTasks);$('togHol').classList.toggle('on',!!calSettings().showHolidays);
 }
 
@@ -330,7 +332,7 @@ function initCalendar(){
   $('calNew').onclick=()=>openEventEditor({event:newEventFrom(newEventDefaults(cal.view==='month'||cal.view==='list'?todayISO():cal.anchor)),isNew:true});
   $('calSideBtn').onclick=()=>{if(innerWidth<=1100){document.body.classList.toggle('calSideOpenM')}else{localCfg.calSide=!localCfg.calSide;saveLocal();document.body.classList.toggle('calSideClosed',!localCfg.calSide);renderCalendar()}};
   document.body.classList.toggle('calSideClosed',localCfg.calSide===false);
-  $('catAllBtn').onclick=()=>{localCfg.hiddenCats=[];saveLocal();renderCalendar()};
+  $('catAllBtn').onclick=()=>{setHiddenCats([]);renderCalendar()};
   $('togTasks').onclick=e=>{e.preventDefault();calSettings().showTasks=!calSettings().showTasks;commit()};
   $('togHol').onclick=e=>{e.preventDefault();calSettings().showHolidays=!calSettings().showHolidays;commit()};
   let qT;$('calSearch').oninput=e=>{clearTimeout(qT);qT=setTimeout(()=>{const q=e.target.value.trim();if(q&&!cal.query)cal.prevView=cal.view;cal.query=q;if(!q&&cal.prevView){cal.view=cal.prevView;cal.prevView=null}renderCalendar()},180)};
