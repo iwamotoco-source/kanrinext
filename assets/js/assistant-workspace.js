@@ -488,14 +488,26 @@
     }
     const sp=row.querySelector('[data-speak]');
     if(sp){
-      let gen=false;
-      const upd=()=>{const on=Voice().tts.speakingKey===m.id;sp.classList.toggle('on',on);sp.innerHTML=ic(on?'stop':'spk')+(on?(gen?'生成中…停止':'停止'):'読み上げ');sp.title=on&&gen?'音声を生成しています…':''};
+      let gen=false,t0=0,timer=0,sk=null;
+      const secs=()=>Math.max(0,Math.floor((performance.now()-t0)/1000));
+      const upd=()=>{
+        const on=Voice().tts.speakingKey===m.id;
+        if(!(on&&gen)&&timer){clearInterval(timer);timer=0}
+        sp.classList.toggle('on',on);
+        sp.innerHTML=ic(on?'stop':'spk')+(on?(gen?'生成中 '+secs()+'秒…停止':'停止'):'読み上げ');
+        sp.title=on&&gen?'音声を生成しています…':'';
+        /* 生成が長引くとき: 待たずにブラウザ音声へ切り替えられる */
+        const showSk=on&&gen&&secs()>=3;
+        if(showSk&&!sk){sk=document.createElement('button');sk.type='button';sk.className='btn sm ghost';sk.dataset.skip='1';sk.textContent='待たずにブラウザ音声で読む';
+          sk.onclick=()=>{if(window.KoujiTTS&&KoujiTTS.skipWait())toast('ブラウザ音声で読み上げます')};sp.after(sk)}
+        if(sk)sk.hidden=!showSk;
+      };
       sp.onclick=()=>{
         if(Voice().tts.speakingKey===m.id){Voice().tts.stop();gen=false;upd();return}
         if(!Voice().tts.supported()){toast(window.KoujiTTS&&KoujiTTS.mode()==='off'?'読み上げは設定でオフになっています':'このブラウザは読み上げに対応していません');return}
         Voice().tts.unlock();   /* iOS: ユーザー操作の中で音声を解錠（キャラクター音声は Web Audio） */
         Voice().tts.speak(m.id,m.text,{onStart:()=>{gen=false;upd()},onEnd:()=>{gen=false;upd()},onError:()=>{gen=false;toast('読み上げに失敗しました');upd()},
-          onGenerating:g=>{gen=!!g;upd()},onFallback:()=>toast('キャラクター音声に接続できないため、ブラウザ音声で読み上げます')});upd();
+          onGenerating:g=>{gen=!!g;if(g){t0=performance.now();if(!timer)timer=setInterval(upd,1000)}upd()},onFallback:()=>toast('キャラクター音声に接続できないため、ブラウザ音声で読み上げます')});upd();
       };
     }
     const cp=row.querySelector('[data-copy]');
@@ -644,6 +656,7 @@
   }
   function afterBot(m,{noSpeak}={}){
     persist();
+    if(m.text&&!m.error&&window.KoujiTTS&&KoujiTTS.prefetch)KoujiTTS.prefetch(m.text);   /* 設定ONのときだけ、読み上げの最初の1回ぶんを裏で先に作る */
     if(!noSpeak&&cfg().autoSpeak&&Voice().tts.supported()&&m.text&&!m.error)Voice().tts.speak(m.id,m.text,{onEnd:()=>{const b=S.el.querySelector(`.aiM[data-id="${m.id}"] [data-speak]`);if(b){b.classList.remove('on');b.innerHTML=ic('spk')+'読み上げ'}}});
   }
 

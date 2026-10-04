@@ -14,7 +14,8 @@
   const AI=()=>window.KoujiAI&&window.KoujiAI._i,V=()=>window.KoujiAIVoice;
   const cfg=()=>{try{return AI().aiCfg()}catch(e){return {}}};
   const DEF={voiceMode:'character',ttsEndpoint:'',ttsKey:'',ttsFallback:true,ttsPitch:6,ttsSpeed:0,ttsVolume:100,
-    ttsModel:'',ttsVoice:'ja-JP-NanamiNeural',ttsF0:'rmvpe',ttsIndexRate:1,ttsProtect:0.33,ttsFilterRadius:3,ttsRmsMix:0.25};
+    ttsModel:'',ttsVoice:'ja-JP-NanamiNeural',ttsF0:'rmvpe',ttsIndexRate:1,ttsProtect:0.33,ttsFilterRadius:3,ttsRmsMix:0.25,
+    ttsScope:'brief',ttsRest:false,ttsPrefetch:false};
   /* Hugging Face Space「John6666/mikuTTS」の既定値（app.py で確認）: Tune=6, rmvpe, index_rate=1, protect=0.33, filter_radius=3, rms_mix_rate=0.25, Edge TTS=ja-JP-NanamiNeural, speed/volume/pitch=0 */
   const T=()=>Object.assign({},DEF,cfg());
   const num=(v,d,lo,hi)=>{v=+v;if(!isFinite(v))v=d;return Math.min(hi,Math.max(lo,v))};
@@ -92,6 +93,28 @@
     return out;
   }
 
+  /* ---------- 読み上げる長さ ----------
+     生成の待ちは文章の長さより「1回ごとの固定の待ち」が大きいため、キャラクター音声は先頭の要点だけを1回で作る（既定: 短め）。
+     残りは画面に表示済み。設定で「続きはブラウザ音声」「全文」にもできる */
+  const SCOPE={brief:70,normal:170,full:Infinity};
+  function applyScope(text,scope){
+    const lim=SCOPE[scope]||SCOPE.brief;
+    text=String(text||'').trim();
+    if(!isFinite(lim)||text.length<=lim)return {read:text,rest:''};
+    const sents=text.split(/(?<=[。！？!?])/).map(s=>s.trim()).filter(Boolean);
+    let out='',i=0;
+    for(;i<sents.length;i++){
+      if(out&&(out+sents[i]).length>lim)break;
+      out+=sents[i];
+    }
+    let rest=sents.slice(i).join('');
+    if(out.length>lim*1.6){                               /* 最初の一文が長すぎる: 読点で切る */
+      const cap=Math.round(lim*1.4);let cut=out.lastIndexOf('、',cap);if(cut<20)cut=cap;else cut+=1;
+      rest=out.slice(cut)+rest;out=out.slice(0,cut);
+    }
+    return {read:out,rest:rest.trim()};
+  }
+
   /* ---------- メモリキャッシュ（短時間・小容量。永続保存しない） ---------- */
   const CACHE_MAX=24,CACHE_MS=8*60*1000,cache=new Map();
   const cacheGet=k=>{const e=cache.get(k);if(!e)return null;if(Date.now()-e.t>CACHE_MS){cache.delete(k);return null}cache.delete(k);cache.set(k,e);return e.b};
@@ -121,11 +144,11 @@
       rms_mix_rate:num(t.ttsRmsMix,0.25,0,1),resample_sr:0};
   }
   function keyOf(b){return JSON.stringify([b.text,b.pitch,b.speed,b.model,b.tts_voice,b.f0_method,b.index_rate,b.protect,b.filter_radius,b.rms_mix_rate])}
-  async function fetchWav(t,text,signal,tg){
-    const body=bodyFor(t,text),k=keyOf(body)+tg.kind;
-    const hit=cacheGet(k);if(hit)return hit;
-    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),tg.timeout);
-    const onAbort=()=>ac.abort();signal&&signal.addEventListener('abort',onAbort);
+  /* 同じ文章の生成は1回にまとめる（先読み生成と読み上げが重なっても二重に作らない）。
+     利用者(signal)が全員いなくなり、先読みでもなければ、生成要求を中止する */
+  const inflight=new Map(),stats={last:null,n:0};
+  async function doFetch(tg,body,k,ac){
+    const to=setTimeout(()=>ac.abort(),tg.timeout),t0=performance.now();
     try{
       const r=await fetch(tg.url,{method:'POST',headers:tg.headers,body:JSON.stringify(body),signal:ac.signal,cache:'no-store'});
       if(!r.ok){let m='';try{m=(await r.json()).error||''}catch(e){}const err=new Error(m||('HTTP '+r.status));err.status=r.status;throw err}
@@ -133,8 +156,31 @@
       if(!buf.byteLength)throw new Error('empty audio');
       const c=ctx();if(!c)throw new Error('Web Audio unsupported');
       const audio=await new Promise((res,rej)=>c.decodeAudioData(buf,res,rej));
-      cachePut(k,audio);return audio;
-    }finally{clearTimeout(to);signal&&signal.removeEventListener('abort',onAbort)}
+      cachePut(k,audio);stats.n++;stats.last={ms:Math.round(performance.now()-t0),chars:body.text.length,kind:tg.kind};
+      return audio;
+    }finally{clearTimeout(to)}
+  }
+  function fetchWav(t,text,signal,tg,keep){
+    const body=bodyFor(t,text),k=keyOf(body)+tg.kind;
+    const hit=cacheGet(k);if(hit)return Promise.resolve(hit);
+    let e=inflight.get(k);
+    if(!e){
+      const ac=new AbortController();
+      e={refs:0,ac,p:null};
+      e.p=doFetch(tg,body,k,ac).finally(()=>{if(inflight.get(k)===e)inflight.delete(k)});
+      e.p.catch(()=>{});
+      inflight.set(k,e);
+    }
+    if(keep){e.refs++;return e.p}
+    e.refs++;
+    return new Promise((res,rej)=>{
+      let done=false;
+      const abortErr=()=>{const x=new Error('aborted');x.name='AbortError';return x};
+      const leave=()=>{if(done)return;done=true;signal&&signal.removeEventListener('abort',on);e.refs--;if(e.refs<=0)e.ac.abort()};
+      const on=()=>{if(done)return;leave();rej(abortErr())};
+      if(signal){if(signal.aborted)return on();signal.addEventListener('abort',on,{once:true})}
+      e.p.then(v=>{if(done)return;done=true;signal&&signal.removeEventListener('abort',on);e.refs--;res(v)},er=>{if(done)return;done=true;signal&&signal.removeEventListener('abort',on);e.refs--;rej(er)});
+    });
   }
 
   /* ---------- キャラクター音声エンジン ---------- */
@@ -146,7 +192,7 @@
     speak(text,cb={}){
       const t=T(),id=++run,tg=target();
       if(!tg){cb.onError&&cb.onError('not-configured');return}
-      const parts=split(normalize(text));
+      const sc=applyScope(normalize(text),t.ttsScope),parts=partsOf(sc,t.ttsScope);
       if(!parts.length){cb.onEnd&&cb.onEnd();return}
       const ac=new AbortController(),c=ctx();
       const st={id,ac,src:null,raf:0,started:false,gain:null,ended:false};cur=st;
@@ -161,13 +207,15 @@
       };
       st.abort=()=>{if(st.ended)return;st.ended=true;ac.abort();cancelAnimationFrame(st.raf);gen(false);try{st.src&&st.src.stop()}catch(e){}try{av&&av.setMouthLevel(null)}catch(e){}if(cur===st)cur=null};
       /* ブラウザ音声へ切り替え（未再生ぶんの文章だけ） */
-      const fallback=(rest,why,quiet)=>{
+      const fallback=(rest,why,quiet,force)=>{
         st.ended=true;cancelAnimationFrame(st.raf);gen(false);try{av&&av.setMouthLevel(null)}catch(e){}if(cur===st)cur=null;
         const be=V().browser;
-        if(!T().ttsFallback||!be||!be.supported()){cb.onError&&cb.onError(why||'character-voice-failed');return}
+        if((!force&&!T().ttsFallback)||!be||!be.supported()){cb.onError&&cb.onError(why||'character-voice-failed');return}
         if(!quiet){try{cb.onFallback&&cb.onFallback(why)}catch(e){}}
         be.speak(rest.join(' '),{onStart:()=>{if(!st.started)cb.onStart&&cb.onStart()},onEnd:cb.onEnd,onError:cb.onError});
       };
+      /* 「待たずにブラウザ音声で読む」: 生成待ちの間だけ有効（再生が始まったら何もしない） */
+      st.skip=()=>{if(!alive()||st.started)return false;ac.abort();fallback(sc.rest?parts.concat([sc.rest]):parts,'user-skip',true,true);return true};
       const gain=c.createGain();gain.gain.value=num(t.ttsVolume,100,0,100)/100;
       const an=c.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0.4;
       gain.connect(an);an.connect(c.destination);st.gain=gain;
@@ -208,11 +256,27 @@
           });
           if(!alive())return;
         }
+        if(sc.rest&&T().ttsRest&&alive())return fallback([sc.rest],'rest',true,true);   /* 読まなかった続きはブラウザ音声で */
         finish();
       })();
     },
     stop(){if(cur){const st=cur;st.abort&&st.abort()}run++}
   };
+
+  /* 読み上げ単位への分割: 短めは1回で作る（1回ごとの待ちが大きいため）。それ以外は90字ごと */
+  const partsOf=(sc,scope)=>(scope||'brief')==='brief'?split(sc.read,120,120):split(sc.read,90,24);
+
+  /* 先読み生成（設定ONのときだけ）: 回答が表示された時点で、読み上げの最初の1回ぶんを裏で作っておく → 🔊がすぐ鳴る */
+  function prefetch(text){
+    try{
+      const t=T();if(mode()!=='character'||!t.ttsPrefetch)return;
+      const tg=target();if(!tg||!characterEngine.supported())return;
+      if(tg.kind==='local'&&mixedBlocked(tg.base))return;
+      const parts=partsOf(applyScope(normalize(text),t.ttsScope),t.ttsScope);if(!parts.length)return;
+      (async()=>{if(tg.kind==='proxy'&&!(await proxyReady(tg)))return;fetchWav(t,parts[0],null,tg,true).catch(()=>{})})();
+    }catch(e){}
+  }
+  const skipWait=()=>!!(cur&&cur.skip&&cur.skip());
 
   /* ---------- ルーター（Voice.tts のエンジンとして差し込む） ---------- */
   const router={
@@ -277,8 +341,8 @@
     router.unlock();V().tts.speak('sample',w,cb||{});
   }
 
-  window.KoujiTTS={DEF,baseUrl,configured,target,proxyUrl,mode,normalize,split,test,sample,clearCache,engine:characterEngine,router,
-    _t:{mixedBlocked,bodyFor,cache,fetchWav}};
+  window.KoujiTTS={DEF,baseUrl,configured,target,proxyUrl,mode,normalize,split,applyScope,prefetch,skipWait,stats,test,sample,clearCache,engine:characterEngine,router,
+    _t:{mixedBlocked,bodyFor,cache,fetchWav,inflight}};
   /* 差し込み: 以後、Voice.tts は常にルーター経由で読み上げる */
   function install(){try{V().tts.setEngine(router)}catch(e){}}
   if(window.KoujiAIVoice)install();else window.addEventListener('load',install);

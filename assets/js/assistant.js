@@ -16,7 +16,7 @@
     sendSchedule:true,actionsEnabled:true,confirmFileSend:true,saveHistory:true,autoSpeak:false,
     provider:'gemini',fallbackToOpenAI:false,localOnly:false,profile:'',
     /* 読み上げ音声（assistant-tts.js）。既定値はHugging Face mikuTTS Spaceの初期設定に合わせる */
-    voiceMode:'character',ttsEndpoint:'',ttsKey:'',ttsFallback:true,ttsPitch:6,ttsSpeed:0,ttsVolume:100,
+    voiceMode:'character',ttsEndpoint:'',ttsKey:'',ttsFallback:true,ttsScope:'brief',ttsRest:false,ttsPrefetch:false,ttsPitch:6,ttsSpeed:0,ttsVolume:100,
     ttsModel:'',ttsVoice:'ja-JP-NanamiNeural',ttsF0:'rmvpe',ttsIndexRate:1,ttsProtect:0.33,ttsFilterRadius:3,ttsRmsMix:0.25};
   const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI'};
   const providerOf=c=>(c&&c.provider==='openai')?'openai':'gemini';
@@ -408,6 +408,10 @@
             <label style="flex:1;min-width:110px"><span class="hint">音量(%)</span><input id="aiTtsVolume" type="number" step="10" min="0" max="100" style="width:100%" value="${esc(c.ttsVolume??100)}"></label>
           </div>
           <label class="check" style="margin-top:10px"><input type="checkbox" id="aiTtsFallback" ${c.ttsFallback!==false?'checked':''}>キャラクター音声が利用できない場合、ブラウザ音声を使用</label>
+          <label style="display:block;margin-top:10px"><span class="hint">読み上げる長さ（キャラクター音声は1回ごとに待ち時間がかかるため、短めがおすすめ。続きは画面に表示されています）</span>
+            <select id="aiTtsScope" style="width:100%"><option value="brief" ${(c.ttsScope||'brief')==='brief'?'selected':''}>短め：最初の要点だけ（約70字・おすすめ）</option><option value="normal" ${c.ttsScope==='normal'?'selected':''}>ふつう（約170字）</option><option value="full" ${c.ttsScope==='full'?'selected':''}>全文（長いと待ちます）</option></select></label>
+          <label class="check" style="margin-top:8px"><input type="checkbox" id="aiTtsRest" ${c.ttsRest?'checked':''}>読まなかった続きは、ブラウザ音声で続けて読む</label>
+          <label class="check" style="margin-top:8px"><input type="checkbox" id="aiTtsPrefetch" ${c.ttsPrefetch?'checked':''}>回答が出たら、声を先に作っておく（🔊がすぐ鳴ります。回答の最初の部分を自動で音声Spaceへ送るため、公開Spaceでは機密を含む回答に注意）</label>
           <details style="margin-top:8px"><summary class="hint">詳細設定（通常は変更不要）</summary>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
               <label><span class="hint">モデル名（空欄=サーバーの既定）</span><input id="aiTtsModel" style="width:100%" value="${esc(c.ttsModel||'')}"></label>
@@ -433,7 +437,7 @@
         const sched=$b('#aiSendSchedule'),acts=$b('#aiActions'),cfm=$b('#aiConfirmFile'),hist=$b('#aiSaveHistory'),spk=$b('#aiAutoSpeak');
         const readTts=()=>{const v=id=>($b('#'+id)||{}).value,n=(id,d)=>{const x=parseFloat(v(id));return isFinite(x)?x:d};
           return {voiceMode:(box.querySelector('input[name=aiVoiceMode]:checked')||{}).value||'character',ttsEndpoint:String(v('aiTtsEndpoint')||'').trim(),ttsKey:String(v('aiTtsKey')||'').replace(/[\s\u200B-\u200D\uFEFF]+/g,''),
-            ttsFallback:!!($b('#aiTtsFallback')&&$b('#aiTtsFallback').checked),ttsPitch:n('aiTtsPitch',6),ttsSpeed:n('aiTtsSpeed',0),ttsVolume:n('aiTtsVolume',100),
+            ttsFallback:!!($b('#aiTtsFallback')&&$b('#aiTtsFallback').checked),ttsScope:['brief','normal','full'].includes(v('aiTtsScope'))?v('aiTtsScope'):'brief',ttsRest:!!($b('#aiTtsRest')&&$b('#aiTtsRest').checked),ttsPrefetch:!!($b('#aiTtsPrefetch')&&$b('#aiTtsPrefetch').checked),ttsPitch:n('aiTtsPitch',6),ttsSpeed:n('aiTtsSpeed',0),ttsVolume:n('aiTtsVolume',100),
             ttsModel:String(v('aiTtsModel')||'').trim(),ttsVoice:String(v('aiTtsVoice')||'').trim()||'ja-JP-NanamiNeural',ttsF0:v('aiTtsF0')==='pm'?'pm':'rmvpe',
             ttsIndexRate:n('aiTtsIndexRate',1),ttsProtect:n('aiTtsProtect',0.33),ttsFilterRadius:n('aiTtsFilterRadius',3),ttsRmsMix:n('aiTtsRmsMix',0.25)}};
         const ttsBox=$b('#aiTtsBox');
@@ -444,8 +448,8 @@
         $b('#aiTtsSample').onclick=()=>{
           /* 保存前の入力値で試せるよう、一時的に反映して再生し、直後に元へ戻す */
           const keep=Object.assign({},aiCfg());saveAiCfg(readTts());ttsOut.textContent='音声を生成しています…';
-          KoujiTTS.clearCache();
-          KoujiTTS.sample('',{onStart:()=>{ttsOut.textContent='再生中'},onEnd:()=>{ttsOut.textContent='再生しました'},onError:()=>{ttsOut.textContent='✘ 再生できませんでした（接続テストで原因を確認してください）'},onFallback:why=>{ttsOut.textContent='キャラクター音声に接続できないため、ブラウザ音声で再生します'}});
+          KoujiTTS.clearCache();const t0=performance.now(),sec=()=>((performance.now()-t0)/1000).toFixed(1)+'秒';let first='';
+          KoujiTTS.sample('',{onStart:()=>{first=sec();ttsOut.textContent='再生中（音が出るまで '+first+'）'},onEnd:()=>{ttsOut.textContent='再生しました'+(first?'（音が出るまで '+first+'）':'')},onError:()=>{ttsOut.textContent='✘ 再生できませんでした（接続テストで原因を確認してください）'},onFallback:why=>{ttsOut.textContent='キャラクター音声に接続できないため、ブラウザ音声で再生します'}});
           localCfg.ai=keep;saveLocal();
         };
         $b('#aiClearHist').onclick=async()=>{
