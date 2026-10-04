@@ -395,13 +395,13 @@
         <div style="height:1px;background:var(--line);margin:14px 0 4px"></div>
         <div class="hint" style="font-weight:700;margin-bottom:2px">読み上げ音声</div>
         <div class="ttsModes" role="radiogroup" aria-label="読み上げ音声">
-          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="character" ${(c.voiceMode||'character')==='character'?'checked':''}>キャラクター音声（Edge TTS → RVC。自分のPC上のTTSサーバーで生成）</label>
+          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="character" ${(c.voiceMode||'character')==='character'?'checked':''}>キャラクター音声（Edge TTS → RVC。自分用のHugging Face Space、または自分のPCのTTSサーバーで生成）</label>
           <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="browser" ${c.voiceMode==='browser'?'checked':''}>ブラウザ標準音声</label>
           <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="off" ${c.voiceMode==='off'?'checked':''}>読み上げなし</label>
         </div>
         <div id="aiTtsBox" style="margin-top:8px">
-          <label style="display:block"><span class="hint">TTSサーバーのURL</span><input id="aiTtsEndpoint" type="url" inputmode="url" autocomplete="off" placeholder="例：https://pc名.tailnet名.ts.net　または　http://localhost:8765" style="width:100%" value="${esc(c.ttsEndpoint||'')}"></label>
-          <label style="display:block;margin-top:6px"><span class="hint">TTSアクセスキー（サーバー起動時に表示されるもの。AIアクセスキーとは別）</span><input id="aiTtsKey" type="password" autocomplete="off" style="width:100%" value="${esc(c.ttsKey||'')}"></label>
+          <label style="display:block"><span class="hint">TTSサーバーのURL（空欄 = Vercel経由で自分用のHugging Face Spaceを使う。PCで動かす場合のみ入力）</span><input id="aiTtsEndpoint" type="url" inputmode="url" autocomplete="off" placeholder="例：https://pc名.tailnet名.ts.net　または　http://localhost:8765" style="width:100%" value="${esc(c.ttsEndpoint||'')}"></label>
+          <label style="display:block;margin-top:6px"><span class="hint">TTSアクセスキー（PCのTTSサーバーを使う場合のみ。サーバー起動時に表示されるもの）</span><input id="aiTtsKey" type="password" autocomplete="off" style="width:100%" value="${esc(c.ttsKey||'')}"></label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
             <label style="flex:1;min-width:110px"><span class="hint">声の高さ(Tune)</span><input id="aiTtsPitch" type="number" step="1" min="-24" max="24" style="width:100%" value="${esc(c.ttsPitch??6)}"></label>
             <label style="flex:1;min-width:110px"><span class="hint">速度(%)</span><input id="aiTtsSpeed" type="number" step="10" min="-100" max="100" style="width:100%" value="${esc(c.ttsSpeed??0)}"></label>

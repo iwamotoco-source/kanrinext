@@ -1,5 +1,7 @@
 # ローカルTTSサーバー（キャラクター音声）
 
+> PCをお持ちでない場合は、[`docs/character-voice-hf-space.md`](../docs/character-voice-hf-space.md)（自分用のHugging Face Spaceを使う方法）を見てください。
+
 AI Workspace の「🔊 読み上げ」を、**Edge TTS → RVC** のキャラクター音声で再生するための、あなたのPC上で動かす小さなサーバーです。
 
 ```
