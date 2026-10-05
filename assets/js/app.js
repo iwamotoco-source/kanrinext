@@ -274,6 +274,7 @@ function openSettings(tab='general'){
      <div class="row"><button class="btn" type="button" id="bkOut">${icon('dl')}バックアップを書き出す（.json）</button><button class="btn" type="button" id="bkIn">${icon('ul')}バックアップから復元</button></div>
      <h3 style="margin-top:22px">Outlookとの連携</h3><p class="hint">Outlookで「カレンダーを保存」したICSファイルを読み込めます。書き出したICSはOutlookやiPhoneのカレンダーに取り込めます。</p>
      <div class="row"><button class="btn" type="button" id="icsIn">${icon('ul')}ICSを読み込む</button><button class="btn" type="button" id="icsOut">${icon('dl')}すべての予定をICSで書き出す</button></div>
+     <h3 style="margin-top:22px">ローカル用（単一HTMLファイル）</h3>${standaloneSection()}
      <p class="hint" style="margin-top:22px">予定 ${state.events.length}件・タスク ${state.tasks.length}件・最終更新 ${new Date(state.updatedAt).toLocaleString('ja-JP')}</p></section>
   </form></div>
   <div class="mFoot"><span class="grow"></span><button class="btn" type="button" data-close>閉じる</button><button class="btn primary" type="button" id="setSave">設定を保存</button></div>`,{wide:true,onMount:box=>{
@@ -295,6 +296,7 @@ function openSettings(tab='general'){
     $('ghPush').onclick=async()=>{localCfg.github=Object.assign(readGh(),{enabled:true});saveLocal();await syncNow('push');f.ghEnabled.value='true'};
     $('bkOut').onclick=()=>{downloadText(`kouji-next_backup_${todayISO()}.json`,JSON.stringify(syncPayload(),null,2),'application/json');toast('バックアップを書き出しました')};
     $('bkIn').onclick=()=>$('fileJson').click();$('icsIn').onclick=()=>$('fileIcs').click();$('icsOut').onclick=()=>exportIcs('all');
+    wireStandalone(box);
     $('setSave').onclick=async()=>{
       const valid=cats.filter(c=>c.name.trim());if(!valid.length){toast('種別を1つ以上残してください');return}
       state.categories=valid.map(c=>Object.assign(c,{name:c.name.trim()}));const ids=new Set(state.categories.map(c=>c.id));state.events.forEach(e=>{if(!ids.has(e.categoryId))e.categoryId=state.categories[0].id});
@@ -306,6 +308,29 @@ function openSettings(tab='general'){
       localCfg.github=readGh();saveLocal();commit();applyTheme();setupAutoSync();if(wxChanged)loadWeather();closeModal();toast('設定を保存しました');
     };
   }});
+}
+/* ---------- ローカル用の単一HTML（assets/js/standalone-export.js） ---------- */
+function standaloneSection(){
+  if(window.KN_STANDALONE){const k=window.KNStandalone||{};return `<p class="hint">いま開いているのは、ローカル用の単一HTML版です（${esc(k.builtAt?new Date(k.builtAt).toLocaleString('ja-JP'):'')} に保存）。新しい版にするには、公開ページの設定から保存し直してください。予定・タスクはこのファイルを開いているブラウザ内に保存されるので、公開ページ側のデータは「バックアップ」で書き出して、こちらで復元してください。</p>`}
+  return `<p class="hint">アプリ全体（予定・タスク・AIアシスタント・各ツール）を、1つのHTMLファイルとして保存します。ネットに繋がなくても開けます（約7MB）。地図の背景・天気・AIとの通信・GitHub同期・動画の圧縮は、オンラインのときだけ使えます。保存したファイルのデータは、公開ページとは別のブラウザ内に保存されます。</p>
+     <div class="row"><button class="btn" type="button" id="stOut">${icon('dl')}<span id="stLbl">単一HTMLを保存する</span></button></div><p class="hint" id="stMsg" style="min-height:1.4em"></p>`;
+}
+function wireStandalone(box){
+  const btn=box.querySelector('#stOut');if(!btn)return;
+  const lbl=box.querySelector('#stLbl'),msg=box.querySelector('#stMsg');let busy=false;
+  btn.onclick=async()=>{
+    if(busy)return;
+    if(!window.KNStandalone||!window.KNStandalone.build){toast('書き出し機能を読み込めませんでした。ページを再読み込みしてください');return}
+    busy=true;btn.disabled=true;msg.textContent='ファイルを集めています…';
+    try{
+      const r=await window.KNStandalone.build((done,total)=>{lbl.textContent=`集めています ${done}/${total}`});
+      const a=document.createElement('a');a.href=URL.createObjectURL(r.blob);a.download=r.name;document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},60000);
+      msg.textContent=`保存しました：${r.name}（${(r.size/1048576).toFixed(1)}MB・${r.files}ファイル）`+(r.missing.length?`。取得できなかったファイルが${r.missing.length}件あります（${r.missing.slice(0,3).join('、')}${r.missing.length>3?' ほか':''}）。`:'');
+      toast('単一HTMLを保存しました');
+    }catch(e){msg.textContent='保存できませんでした：'+(e&&e.message||e);toast('単一HTMLを保存できませんでした')}
+    finally{busy=false;btn.disabled=false;lbl.textContent='単一HTMLを保存する'}
+  };
 }
 function restoreBackup(text){let p;try{p=JSON.parse(text)}catch(e){toast('バックアップファイルを読めませんでした');return}const payload=p.state?p:{state:p,updatedAt:p.updatedAt||Date.now()};if(!payload.state?.events&&!payload.state?.tasks){toast('工事管理nextのバックアップではありません');return}
   confirmBox(`バックアップ（予定${payload.state.events?.length||0}件・タスク${payload.state.tasks?.length||0}件）で現在のデータを置き換えます。よろしいですか？`,{ok:'置き換える'}).then(ok=>{if(!ok)return;payload.updatedAt=Date.now();applyPayload(payload);state.updatedAt=Date.now();saveState(true);applyTheme();toast('バックアップから復元しました')})}
@@ -364,7 +389,7 @@ function boot(){
   if(innerWidth<=1180)document.body.classList.remove('paneOpenM');
   handleRoute();renderTasks();loadWeather();setInterval(loadWeather,20*60*1000);setupAutoSync();
   window.addEventListener('online',()=>syncNow('auto'));document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow('auto')});
-  if('serviceWorker'in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
+  if(!window.KN_STANDALONE&&'serviceWorker'in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
     /* 新しいSWが有効化されたら一度だけ再読込（モーダル入力中は閉じるまで待つ）。PWA復帰時にも更新確認する。 */
     const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;
     const reloadWhenIdle=()=>{if(reloaded)return;/* AI Workspaceで入力・添付・応答待ち・録音中のときも再読込を待つ */if(modalOpen()||(window.KoujiAIWorkspace&&KoujiAIWorkspace.busyOrDirty&&KoujiAIWorkspace.busyOrDirty())){setTimeout(reloadWhenIdle,3000);return}reloaded=true;location.reload()};

@@ -176,6 +176,14 @@
       if(kind==='stage'){api.prefetch(['idle','greeting']);scheduleBlink()}
       return {el,view:v,unmount(){views.delete(v);v.destroy()}};
     },
+    /* 使う画像ファイルの一覧（相対パス）。単一HTMLの書き出し（standalone-export.js）が同梱する画像を決めるのに使う */
+    files(){
+      const out=[];
+      STATES.forEach(s=>out.push('assets/avatar/s/'+s+'.webp'));
+      new Set(Object.values(ICON_OF)).forEach(n=>out.push('assets/avatar/i/'+n+'.webp'));
+      ['eyes_open','eyes_half','eyes_closed','mouth_closed','mouth_half','mouth_open'].forEach(n=>out.push('assets/avatar/a/'+n+'.webp'));
+      return out;
+    },
     /* 必要な素材だけ先に読む（立ち絵は1枚≈70KB）。アイコンは小さいので初回に全部 */
     prefetch(states){states.forEach(s=>{load(url('s',s)).catch(()=>{})})},
     prefetchIcons(){new Set(Object.values(ICON_OF)).forEach(n=>load(url('i',n)).catch(()=>{}))},
