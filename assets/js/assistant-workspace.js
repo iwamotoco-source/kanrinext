@@ -170,6 +170,7 @@
     const ready=c.enabled&&c.endpoint&&c.accessKey;
     if(c.localOnly)return {t:'ローカルのみ',k:'local'};
     if(!ready)return {t:'ローカル',k:'local'};
+    if(AI().providerOf(c)==='chatgpt')return {t:'ChatGPT 未開通',k:'warn'};
     return {t:AI().providerLabel(AI().providerOf(c))+' 接続中',k:'ok'};
   }
   function updateLive(){const el=S.el&&$q('#aiLive');if(!el)return;const l=liveText();el.textContent=l.t;el.dataset.k=l.k}

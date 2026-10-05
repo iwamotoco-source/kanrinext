@@ -23,7 +23,7 @@ const {cleanSecret,redact,b64Bytes}=require('./_lib/util');
 const router=require('./_lib/providers');
 
 const DEFAULT_ORIGIN='https://iwamotoco-source.github.io';
-const BUILD_ID='conversation-v2-20261005';
+const BUILD_ID='chatgpt-preparation-20261006';
 
 /* AI Workspace（mode:'workspace'）の入力上限。Vercel関数のリクエスト本文上限(約4.5MB)より手前で止める */
 const LIMITS={
@@ -74,6 +74,7 @@ function setCors(req,res){
 
 /* ---------- エラー応答（code で原因を切り分け、秘密値は含めない） ---------- */
 const MESSAGES={
+  CHATGPT_NOT_CONNECTED:'ChatGPT連携は未開通です。Web用クライアントIDとChatGPT利用枠の許可が必要です。Geminiを選ぶと通常通り使えます。',
   ORIGIN_NOT_ALLOWED:'このOriginからの接続は許可されていません（ALLOWED_ORIGIN）',
   ACCESS_TOKEN_NOT_CONFIGURED:'Vercel側に APP_ACCESS_TOKEN が設定されていません（設定後は再デプロイが必要）',
   ACCESS_KEY_MISSING:'AIアクセスキーが送信されていません',
@@ -330,7 +331,7 @@ module.exports=async function handler(req,res){
     return res.status(200).json({
       ok:true,service:'kouji-next-ai',build:BUILD_ID,workspace:true,pdf:true,
       defaultProvider:info.defaultProvider,
-      gemini:info.gemini,openai:info.openai,
+      gemini:info.gemini,openai:info.openai,chatgpt:{configured:false,status:"registration_required"},
       accessTokenConfigured:!!cleanSecret(process.env.APP_ACCESS_TOKEN),
       /* 旧クライアント互換 */
       openaiConfigured:info.openai.configured,modelConfigured:info.openai.modelConfigured,model:info.openai.model
@@ -347,6 +348,7 @@ module.exports=async function handler(req,res){
   if(!body||typeof body!=='object')return fail(res,400,'BAD_REQUEST','invalid body');
 
   /* プロバイダー選択（既定 gemini）。OpenAI へ切り替わるのは provider:'openai' か、fallbackToOpenAI:true の明示時のみ */
+  if(body.provider==='chatgpt')return fail(res,503,'CHATGPT_NOT_CONNECTED');
   const provider=router.normProvider(body.provider);
   if(!provider)return fail(res,400,'PROVIDER_INVALID');
   const fallbackToOpenAI=body.fallbackToOpenAI===true&&provider==='gemini';

@@ -18,8 +18,8 @@
     /* 読み上げ音声（assistant-tts.js）。既定値はHugging Face mikuTTS Spaceの初期設定に合わせる */
     voiceMode:'character',ttsEndpoint:'',ttsKey:'',ttsFallback:true,ttsScope:'brief',ttsRest:false,ttsPrefetch:false,ttsPitch:6,ttsSpeed:0,ttsVolume:100,
     ttsModel:'',ttsVoice:'ja-JP-NanamiNeural',ttsF0:'rmvpe',ttsIndexRate:1,ttsProtect:0.33,ttsFilterRadius:3,ttsRmsMix:0.25};
-  const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI'};
-  const providerOf=c=>(c&&c.provider==='openai')?'openai':'gemini';
+  const PROVIDER_LABEL={gemini:'Gemini',openai:'OpenAI',chatgpt:'ChatGPT'};
+  const providerOf=c=>['openai','chatgpt'].includes(c?.provider)?c.provider:'gemini';
   const providerLabel=p=>PROVIDER_LABEL[p]||String(p||'');
   let history=[];
 
@@ -246,6 +246,7 @@
     if(!key)throw new AiError('AIアクセスキーが未入力です','ACCESS_KEY_MISSING','config');
     /* 使うAIの選択はここで一括して付ける（Gemini が標準。OpenAI への切替は明示した場合のみ） */
     const prov=providerOf(cfg);
+    if(prov==='chatgpt')throw new AiError('ChatGPT連携は未開通です。Web用のクライアントIDとChatGPT利用枠の許可が必要です。AI設定でGeminiを選ぶと今まで通り使えます。','CHATGPT_NOT_CONNECTED','config');
     body=Object.assign({},body,{provider:prov,fallbackToOpenAI:prov==='gemini'&&cfg.fallbackToOpenAI===true});
     let r;
     try{
@@ -351,6 +352,7 @@
   /* 「外部AIへ送信されるデータ」の説明（設定画面・添付確認で共通） */
   function sendInfoHtml(prov,o={}){
     const PL=providerLabel(prov),free=prov==='gemini';
+    if(prov==='chatgpt')return '<p class="hint">ChatGPT連携は未開通です。質問・資料は送信されません。接続にはWebアプリ用の登録とChatGPT利用枠の許可が必要です。</p>';
     const li=t=>`<li>${t}</li>`;
     return `<ul style="margin:6px 0 0 1.1em;padding:0;line-height:1.7">
       ${li('質問文と、直近の会話（最大10件）')}
@@ -376,6 +378,8 @@
         <div class="field aiProvBox" style="margin-top:14px"><label>AIプロバイダー</label>
           <label class="check aiProvRow"><input type="radio" name="aiProv" value="gemini" ${providerOf(c)==='gemini'?'checked':''}><span><b>Gemini</b>（標準）<small class="hint">Google AI Studio の無料枠で利用できます。Vercelの GEMINI_API_KEY を使用</small></span></label>
           <label class="check aiProvRow"><input type="radio" name="aiProv" value="openai" ${providerOf(c)==='openai'?'checked':''}><span><b>OpenAI</b>（予備・任意）<small class="hint">有料API（課金設定が必要）。Vercelの OPENAI_API_KEY を使用</small></span></label>
+          <label class="check aiProvRow"><input type="radio" name="aiProv" value="chatgpt" ${providerOf(c)==='chatgpt'?'checked':''}><span><b>ChatGPT</b>（連携待ち）<small class="hint">ChatGPTの利用枠で使う接続先。現在は未開通です。選択してもGeminiや有料APIへ自動で切り替えません。</small></span></label>
+          <p class="hint"><a href="https://developers.openai.com/siwc/request-client-id" target="_blank" rel="noopener noreferrer">ChatGPT連携の申請条件</a></p>
           <label class="check" id="aiFbRow" style="margin-top:10px"><input type="checkbox" id="aiFallback" ${c.fallbackToOpenAI===true?'checked':''}><span>Geminiが利用できない場合、OpenAIを使用する<small class="hint">初期値はオフ。オンにすると、Geminiの無料枠上限・障害のときに限り OpenAI（課金対象）へ送信します。オフなら、そこで止まります。</small></span></label>
         </div>
         <details class="aiSendInfo" id="aiSendInfo"><summary>外部AIへ送信されるデータ</summary>
@@ -484,10 +488,10 @@
         key.value=c.accessKey||'';
         $b('#aiKeyShow').onclick=e=>{const v=key.type==='password';key.type=v?'text':'password';e.currentTarget.textContent=v?'隠す':'表示'};
         const fb=$b('#aiFallback'),fbRow=$b('#aiFbRow'),infoBody=$b('#aiSendInfoBody');
-        const curProv=()=>(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini';
+        const curProv=()=>providerOf({provider:(box.querySelector('input[name=aiProv]:checked')||{}).value});
         const refreshProv=()=>{
           const p=curProv();
-          fb.disabled=p==='openai';fbRow.style.opacity=p==='openai'?'.5':'1';
+          fb.disabled=p!=='gemini';fbRow.style.opacity=p!=='gemini'?'.5':'1';
           infoBody.innerHTML=sendInfoHtml(p,{sendSchedule:sched.checked,sendNotes:notes.checked});
         };
         box.querySelectorAll('input[name=aiProv]').forEach(r=>r.onchange=refreshProv);
@@ -496,7 +500,7 @@
         /* 入力値 → 設定オブジェクト（保存と接続テストで同じ関数を使い、値の食い違いをなくす） */
         const readForm=()=>{const n=normEndpoint(ep.value);return {enabled:en.value==='true',endpoint:n.url,accessKey:cleanKey(key.value)||n.key,preferLocal:local.checked,sendNotes:notes.checked,
           sendSchedule:sched.checked,actionsEnabled:acts.checked,confirmFileSend:cfm.checked,saveHistory:hist.checked,autoSpeak:spk.checked,...readTts(),profile:(($b('#aiProfile')||{}).value||'').trim().slice(0,1500),
-          provider:(box.querySelector('input[name=aiProv]:checked')||{}).value==='openai'?'openai':'gemini',fallbackToOpenAI:!!($b('#aiFallback')&&$b('#aiFallback').checked&&(box.querySelector('input[name=aiProv]:checked')||{}).value!=='openai')}};
+          provider:curProv(),fallbackToOpenAI:!!($b('#aiFallback')&&$b('#aiFallback').checked&&curProv()==='gemini')}};
         $b('#aiSave').onclick=()=>{saveAiCfg(readForm());closeModal();toast('AI設定を保存しました')};
         testBtn.onclick=async()=>{
           const cfg=readForm();

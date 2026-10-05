@@ -76,6 +76,24 @@ const ROOT=path.resolve(__dirname,'..'),requests=[];
     assert.equal(requests.length,3);await finish();
     assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await p.click('#aiConversationExit');assert.equal(await p.locator('#aiConversationBox').isVisible(),false);
+    const gated=await p.evaluate(async()=>{
+      const i=KoujiAI._i,original=i.aiCfg();
+      const before=i.providerOf(original);
+      i.saveAiCfg({provider:'chatgpt'});
+      const saved=i.providerOf(i.aiCfg());let code='';
+      try{await i.postAi(i.aiCfg(),{mode:'workspace',messages:[{role:'user',text:'test'}]});}catch(e){code=e.code;}
+      i.saveAiCfg({provider:original.provider});
+      return {before,saved,code,defaultProvider:i.AI_DEFAULT.provider};
+    });
+    assert.equal(gated.before,'gemini');assert.equal(gated.defaultProvider,'gemini');
+    assert.equal(gated.saved,'chatgpt');assert.equal(gated.code,'CHATGPT_NOT_CONNECTED');
+    assert.equal(requests.length,3,'unconnected ChatGPT must not send to Gemini or paid API');
+    await p.evaluate(()=>KoujiAI.settings());
+    await p.locator('input[name=aiProv][value=chatgpt]').check();
+    assert.equal(await p.locator('#aiFallback').isDisabled(),true);
+    await p.click('#aiSave');
+    assert.equal(await p.evaluate(()=>KoujiAI._i.aiCfg().provider),'chatgpt');
+    await p.evaluate(()=>KoujiAI._i.saveAiCfg({provider:'gemini'}));
     assert.deepEqual(errors,[]);
     console.log('PASS: auto-send final recognition, real AI HTTP route, Piper router callbacks, next turn, mic muted during output, cancellation/late events, permission error, close, normal input, keyboard fallback, mobile width; saved autoSpeak unchanged.');
   }finally{await browser.close();server.close();}
