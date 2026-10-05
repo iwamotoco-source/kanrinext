@@ -18,13 +18,16 @@
     start(handlers={}){
       const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition;
       if(!Ctor){handlers.onError&&handlers.onError('unsupported','このブラウザは音声認識に対応していません。キーボードのマイクボタン（音声入力）をお使いください。');return false}
-      if(this._active)this.stop();
+      if(this._r)this.abort();
       let r;
       try{r=new Ctor()}catch(e){handlers.onError&&handlers.onError('unsupported','音声認識を開始できません');return false}
       r.lang='ja-JP';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;
       let finalText='',gotError=false;
-      r.onstart=()=>{this._active=true;handlers.onStart&&handlers.onStart()};
+      const current=()=>this._r===r;
+      const finish=(text,error)=>{if(!current())return;this._active=false;this._r=null;this._cancel=null;handlers.onEnd&&handlers.onEnd(text,error)};
+      r.onstart=()=>{if(!current())return;handlers.onStart&&handlers.onStart()};
       r.onresult=ev=>{
+        if(!current())return;
         let interim='';
         for(let i=ev.resultIndex;i<ev.results.length;i++){
           const res=ev.results[i],t=res[0]&&res[0].transcript||'';
@@ -33,6 +36,7 @@
         handlers.onInterim&&handlers.onInterim(finalText+interim);
       };
       r.onerror=ev=>{
+        if(!current())return;
         gotError=true;
         const code=ev&&ev.error||'error';
         const msg={'not-allowed':'マイクの使用が許可されていません。ブラウザ／iOSの設定でマイクを許可してください。',
@@ -43,13 +47,14 @@
           'aborted':''}[code];
         if(code!=='aborted')handlers.onError&&handlers.onError(code,msg||('音声認識エラー（'+code+'）'));
       };
-      r.onend=()=>{this._active=false;this._r=null;handlers.onEnd&&handlers.onEnd(finalText.trim(),gotError)};
-      this._r=r;
+      r.onend=()=>finish(finalText.trim(),gotError);
+      this._r=r;this._active=true;
+      this._cancel=()=>{try{r.abort()}catch(e){}finish('',true)};
       try{r.start()}catch(e){this._active=false;this._r=null;handlers.onError&&handlers.onError('start-failed','音声認識を開始できませんでした');return false}
       return true;
     },
     stop(){try{this._r&&this._r.stop()}catch(e){}},
-    abort(){try{this._r&&this._r.abort()}catch(e){}}
+    abort(){this._cancel&&this._cancel()}
   };
 
   /* ---------- 読み上げ ---------- */

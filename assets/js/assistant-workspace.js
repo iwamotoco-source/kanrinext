@@ -18,6 +18,62 @@
   };
   const $q=sel=>S.el.querySelector(sel);
   const cfg=()=>AI().aiCfg();
+  // Conversation is a session preference; never changes saved autoSpeak.
+  const C={on:false,phase:'idle',epoch:0,message:''};
+  function conversationState(phase,message=''){
+    C.phase=phase;C.message=message;renderConversation();
+  }
+  function renderConversation(){
+    if(!S.el)return;
+    $q('#aiConversation').setAttribute('aria-pressed',String(C.on));
+    $q('#aiConversation').classList.toggle('on',C.on);
+    $q('#aiConversationBox').hidden=!C.on;
+    $q('#aiSpeakToggle').disabled=C.on;
+    const labels={idle:'話すボタンを押してください',listening:'聞き取り中… 話し終えると送信します',thinking:'AIの回答を待っています…',generating:'端末内で音声を生成しています… 初回は時間がかかります',speaking:'回答を読み上げています…',error:'もう一度試してください'};
+    $q('#aiConversationStatus').textContent=C.message||labels[C.phase];
+    const b=$q('#aiConversationTalk');
+    b.textContent=C.phase==='listening'?'話し終わり':Voice().rec.supported()?'話す':'キーボードで音声入力';
+    b.disabled=S.busy||['thinking','generating','speaking'].includes(C.phase);
+  }
+  function stopConversation(exit=false){
+    C.epoch++;if(exit)C.on=false;
+    Voice().rec.abort();S.recording=false;AV_().release('mic');showRec(false);
+    Voice().tts.stop();if(S.ctrl)S.ctrl.abort();
+    conversationState('idle',exit?'':'停止しました。次の発話は「話す」を押してください。');
+  }
+  function toggleConversation(){
+    if(C.on){stopConversation(true);return;}
+    if(!Voice().tts.supported()){toast('読み上げ音声をAI設定で選んでください');window.KoujiAI.settings();return;}
+    if(window.KoujiTTS&&KoujiTTS.mode()==='piper'&&!KoujiPiper.installed()){toast('まずAI設定で音声データを取得してください');window.KoujiAI.settings();return;}
+    C.epoch++;Voice().rec.abort();Voice().tts.stop();C.on=true;
+    conversationState('idle');
+  }
+  function conversationTalk(){
+    if(!C.on||S.busy)return;
+    if(C.phase==='listening'){Voice().rec.stop();return;}
+    if(['thinking','generating','speaking'].includes(C.phase))return;
+    if(!Voice().rec.supported()){
+      $q('#aiInput').focus();conversationState('idle','キーボードのマイクで入力し、送信を押してください。回答は読み上げます。');return;
+    }
+    Voice().tts.stop();Voice().tts.unlock();
+    const epoch=++C.epoch,inp=$q('#aiInput'),base=inp.value.trim()?inp.value.trim()+' ':'';
+    const active=()=>C.on&&C.epoch===epoch&&S.open;
+    conversationState('listening');
+    Voice().rec.start({
+      onStart:()=>{if(!active())return;S.recording=true;AV_().hold('mic','listening');showRec(true,'聞き取り中… 話してください')},
+      onInterim:t=>{if(!active())return;inp.value=base+t;grow();$q('#aiRecText').textContent='聞き取り中… '+t.slice(-40)},
+      onError:(code,msg)=>{if(!active())return;S.recording=false;AV_().release('mic');showRec(false);conversationState('error',msg||'音声入力に失敗しました。もう一度「話す」を押してください。')},
+      onEnd:async(final,err)=>{
+        if(!active())return;S.recording=false;AV_().release('mic');showRec(false);
+        if(err){if(C.phase!=='error')conversationState('idle');return;}
+        if(!final){conversationState('idle','音声が聞き取れませんでした。「話す」で再試行してください。');return;}
+        inp.value=base+final;grow();scheduleCtx(true);
+        conversationState('thinking');
+        try{await send();if(active()&&C.phase==='thinking')conversationState('idle');}
+        catch(e){if(active())conversationState('error',e.message||'送信できませんでした。');}
+      }
+    });
+  }
   const provLabel=()=>AI().providerLabel(AI().providerOf(cfg()));
 
   /* ---------- 小物 ---------- */
@@ -156,6 +212,11 @@
       </header>
       <div class="aiWsScroll" id="aiScroll"><div class="aiWsInner" id="aiMsgs" aria-live="polite"></div></div>
       <footer class="aiWsComposer" id="aiComposer">
+        <section id="aiConversationBox" hidden aria-label="会話モード" style="margin-bottom:10px;padding:10px;border:1px solid var(--line);border-radius:12px">
+          <b>会話モード</b><div id="aiConversationStatus" role="status" aria-live="polite" style="margin:6px 0"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" type="button" id="aiConversationTalk">話す</button><button class="btn sm" type="button" id="aiConversationStop">停止</button><button class="btn sm ghost" type="button" id="aiConversationExit">会話モードを終了</button></div>
+          <div class="hint" style="margin-top:6px">話し終えると自動送信します。音声認識はブラウザの機能を使用し、認識した文章は通常のAI設定に従って送信します。</div>
+        </section>
         <div id="aiPiperCredit" hidden style="font-size:13px;margin-bottom:6px">音声：つくよみちゃん（© Rei Yumesaki / CV.夢前黎）・無料公開コーパス使用　<a href="./tools/piper-voice.html" target="_blank" rel="noopener">利用条件</a></div>
         <div class="aiCtx" id="aiCtx"></div>
         <div class="aiRec" id="aiRec" hidden><span class="dot"></span><span id="aiRecText">録音中…話してください</span><button class="btn sm" type="button" id="aiRecStop">${ic('stop')}停止</button></div>
@@ -164,6 +225,7 @@
           <button class="btn icon aiRound" type="button" id="aiPlus" aria-label="添付（写真・カメラ・ファイル）" title="添付">${icon('plus')}</button>
           <textarea id="aiInput" rows="1" placeholder="AIに質問・依頼" autocomplete="off" enterkeyhint="send"></textarea>
           <button class="btn icon aiRound" type="button" id="aiMic" aria-label="音声入力" title="音声入力">${ic('mic')}</button>
+          <button class="btn sm" type="button" id="aiConversation" aria-pressed="false" title="会話モード">会話</button>
           <button class="btn primary icon aiRound" type="button" id="aiSend" aria-label="送信" title="送信">${ic('send')}</button>
         </div>
         <input type="file" id="aiFilePhoto" accept="image/*" multiple hidden>
@@ -182,11 +244,11 @@
   function wire(){
     $q('#aiClose').onclick=close;
     $q('#aiNew').onclick=$q('#aiNewSide').onclick=()=>{newChat();if(isPhone())setHist(false)};
-    $q('#aiCfg').onclick=$q('#aiCfgSide').onclick=()=>window.KoujiAI.settings();
+    $q('#aiCfg').onclick=$q('#aiCfgSide').onclick=()=>{if(C.on)stopConversation(true);window.KoujiAI.settings()};
     $q('#aiHistBtn').onclick=()=>setHist(!S.histOpen);
     $q('#aiSideScrim').onclick=()=>setHist(false);
     $q('#aiSend').onclick=()=>{if(S.busy)return;send()};
-    $q('#aiSpeakToggle').onclick=()=>{AI().saveAiCfg({autoSpeak:!cfg().autoSpeak});if(!cfg().autoSpeak)Voice().tts.stop();refreshStatus()};
+    $q('#aiSpeakToggle').onclick=()=>{if(C.on)return;AI().saveAiCfg({autoSpeak:!cfg().autoSpeak});if(!cfg().autoSpeak)Voice().tts.stop();refreshStatus()};
     const inp=$q('#aiInput');
     inp.addEventListener('input',()=>{grow();scheduleCtx()});
     inp.addEventListener('keydown',e=>{
@@ -207,6 +269,11 @@
     };
     ['aiFilePhoto','aiFileCam','aiFileDoc'].forEach(id=>{const f=$q('#'+id);f.onchange=()=>{const fs=[...f.files];f.value='';addFiles(fs)}});
     $q('#aiMic').onclick=toggleMic;
+    $q('#aiConversation').onclick=toggleConversation;
+    $q('#aiConversationTalk').onclick=conversationTalk;
+    $q('#aiConversationStop').onclick=()=>stopConversation();
+    $q('#aiConversationExit').onclick=()=>stopConversation(true);
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&C.on)stopConversation(true)});
     $q('#aiRecStop').onclick=()=>Voice().rec.stop();
     $q('#aiChips').addEventListener('click',e=>{
       const rm=e.target.closest('[data-rm]');
@@ -370,6 +437,7 @@
 
   /* ---------- 音声入力 ---------- */
   function toggleMic(){
+    if(C.on){conversationTalk();return;}
     const V=Voice().rec;
     if(S.recording){V.stop();return}
     const inp=$q('#aiInput');
@@ -379,6 +447,7 @@
       inp.focus();return;
     }
     const base=inp.value?inp.value.replace(/\s+$/,'')+' ':'';
+    Voice().tts.stop();
     V.start({
       onStart:()=>{S.recording=true;AV_().hold('mic','listening');showRec(true,'録音中… 話してください（停止で入力欄に反映）')},
       onInterim:t=>{inp.value=base+t;grow();$q('#aiRecText').textContent='録音中… '+t.slice(-40)},
@@ -505,6 +574,9 @@
         if(sk)sk.hidden=!showSk;
       };
       sp.onclick=()=>{
+        // History playback is a separate operation; leave conversation capture
+        // before using a message's controls, so its callbacks cannot strand it.
+        if(C.on)stopConversation(true);
         if(Voice().tts.speakingKey===m.id){Voice().tts.stop();gen=false;upd();return}
         if(!Voice().tts.supported()){toast(window.KoujiTTS&&KoujiTTS.mode()==='off'?'読み上げは設定でオフになっています':'このブラウザは読み上げに対応していません');return}
         Voice().tts.unlock();   /* iOS: ユーザー操作の中で音声を解錠（キャラクター音声は Web Audio） */
@@ -581,6 +653,7 @@
   const needsCfg=e=>/^ACCESS_|^NO_ENDPOINT|^NETWORK$|^GEMINI_KEY|^OPENAI_KEY|^GEMINI_QUOTA$|^OPENAI_QUOTA$|^PROVIDER_INVALID$/.test(e&&e.code||'');
 
   async function send(){
+    if(S.busy)return;
     const inp=$q('#aiInput');
     let text=inp.value.trim();
     const ready=S.atts.filter(a=>!a.error&&a.status!=='loading');
@@ -590,8 +663,11 @@
     if(!text)text='添付ファイルの内容を確認して、要点を整理してください。';
     const c=cfg(),remoteReady=c.enabled&&c.endpoint&&c.accessKey&&!c.localOnly;
     if(withFiles&&c.localOnly){toast('「ローカルのみ」のため、添付ファイルは解析できません（送信先を切り替えてください）');return}
-    if(c.autoSpeak)Voice().tts.unlock();   /* iOS: 送信タップ中に音声を解錠 */
+    if(Voice().rec.active){C.epoch++;Voice().rec.abort();S.recording=false;AV_().release('mic');showRec(false);}
+    if(C.on)C.epoch++;
+    if(c.autoSpeak||C.on)Voice().tts.unlock();   /* iOS: ユーザー操作中に解錠 */
     Voice().tts.stop();
+    if(C.on)conversationState('thinking');
 
     /* 1) 添付なし: 端末内で答えられるものは端末内で */
     const force=S.forceRemote&&remoteReady;S.forceRemote=false;
@@ -633,7 +709,7 @@
       }
       addBot({id:mid(),role:'bot',error:true,fixCfg:!c.localOnly,ts:Date.now(),
         text:c.localOnly?'「ローカルのみ」のため外部AIへは送信していません。この質問は端末内の集計では解釈できません。入力欄上の送信先を切り替えると、外部AIで回答できます。':withFiles?'添付ファイルの解析には外部AIの設定が必要です。右上の歯車から「外部AIを使用する」・AIプロキシURL・AIアクセスキーを設定してください。':'この質問は端末内の集計では解釈できません。外部AIを設定すると、自由な言い回しの質問や予定・タスクの追加提案ができます。'});
-      persist();return;
+      persist();if(C.on)conversationState('error','この質問への回答にはAI設定が必要です。画面の案内を確認してください。');return;
     }
 
     const ctxOpt=Object.assign({},S.ctx,{hasAtt:S.atts.length>0});
@@ -641,7 +717,7 @@
     /* 3) 添付の送信前確認（設定でオフ可）。キャンセルしても入力はそのまま残す */
     if(withFiles&&c.confirmFileSend!==false){
       const ok=await fileDialog(ready,{text,ctx,confirm:true});
-      if(!ok)return;
+      if(!ok){if(C.on)conversationState('idle');return;}
     }
     const atts=ready.slice();
     const attMeta=atts.map(a=>({id:a.id,name:a.name,kind:a.kind,tag:a.tag,size:a.size,summary:a.summary}));
@@ -659,10 +735,21 @@
   function afterBot(m,{noSpeak}={}){
     persist();
     if(m.text&&!m.error&&window.KoujiTTS&&KoujiTTS.prefetch)KoujiTTS.prefetch(m.text);   /* 設定ONのときだけ、読み上げの最初の1回ぶんを裏で先に作る */
-    if(!noSpeak&&cfg().autoSpeak&&Voice().tts.supported()&&m.text&&!m.error)Voice().tts.speak(m.id,m.text,{onEnd:()=>{const b=S.el.querySelector(`.aiM[data-id="${m.id}"] [data-speak]`);if(b){b.classList.remove('on');b.innerHTML=ic('spk')+'読み上げ'}}});
+    const epoch=C.epoch;let failed=false;
+    if(S.open&&!noSpeak&&(cfg().autoSpeak||C.on)&&Voice().tts.supported()&&m.text&&!m.error){
+      Voice().rec.abort();S.recording=false;showRec(false);
+      if(C.on)conversationState('generating');
+      Voice().tts.speak(m.id,m.text,{
+        onGenerating:on=>{if(C.on&&epoch===C.epoch&&on)conversationState('generating')},
+        onStart:()=>{if(C.on&&epoch===C.epoch)conversationState('speaking')},
+        onError:e=>{failed=true;if(C.on&&epoch===C.epoch)conversationState('error',e||'読み上げできませんでした。回答は画面で確認できます。')},
+        onEnd:()=>{const b=S.el.querySelector(`.aiM[data-id="${m.id}"] [data-speak]`);if(b){b.classList.remove('on');b.innerHTML=ic('spk')+'読み上げ'}if(C.on&&epoch===C.epoch&&!failed)conversationState('idle')}
+      });
+    }else if(C.on)conversationState('idle');
   }
 
   async function runRemote(req){
+    const conversationEpoch=C.epoch;
     const {text,atts,ctxOpt,userMsg}=req;
     S.busy=true;$q('#aiSend').disabled=true;S.ctrl=new AbortController();
     const think=showThinking(atts.length?'添付を処理しています…':'考えています…');
@@ -708,8 +795,9 @@
       AV_().release('req');
       if(acts.length)AV_().flash('warning',2600);
       else{AV_().flash('speaking',1500);setTimeout(()=>{if(!Voice().tts.speakingKey)AV_().flash('smile',1500)},1500)}
-      afterBot(m);
+      afterBot(m,{noSpeak:conversationEpoch!==C.epoch});
     }catch(e){
+      if(C.on&&conversationEpoch===C.epoch)conversationState('error','回答を取得できませんでした。画面の案内を確認してください。');
       think.remove();
       AV_().release('req');
       if(e&&e.code==='ABORTED'){addBot({id:mid(),role:'bot',error:true,ts:Date.now(),text:'中止しました。',retry});}
@@ -720,6 +808,7 @@
       AV_().flash('error',3200);persist();
     }finally{
       S.busy=false;S.ctrl=null;$q('#aiSend').disabled=false;
+      renderConversation();
     }
   }
 
@@ -750,11 +839,12 @@
   async function loadConv(id){
     if(S.busy){toast('応答中は切り替えられません');return}
     const c=await Store().get(id);if(!c){renderHistory();return}
-    Voice().tts.stop();S.conv=c;S.atts=[];renderChips();renderAll();renderHistory();
+    if(C.on)stopConversation(true);Voice().tts.stop();S.conv=c;S.atts=[];renderChips();renderAll();renderHistory();
     try{localStorage.setItem(LAST_KEY,id)}catch(e){}
     if(isPhone())setHist(false);
   }
   function newChat(){
+    if(C.on)stopConversation(true);
     if(S.busy){toast('応答中は新しい会話を始められません');return}
     Voice().tts.stop();S.conv=newConv();S.atts=[];$q('#aiInput').value='';grow();renderChips();renderAll();renderHistory();
     try{localStorage.removeItem(LAST_KEY)}catch(e){}
@@ -780,14 +870,15 @@
   }
   function close(){
     if(!S.el)return;
-    if(S.recording)Voice().rec.abort();
+    if(C.on)stopConversation(true);
+    Voice().rec.abort();
     Voice().tts.stop();
     S.el.hidden=true;S.open=false;setHist(false);AV_().setSpeaking(false);
     document.documentElement.classList.remove('aiWsOpen');
   }
 
   /* Service Worker更新による自動再読込を、入力・添付・応答待ち・録音中は待たせるための判定 */
-  const busyOrDirty=()=>!!(S.el&&S.open&&(S.busy||S.recording||S.atts.length||($q('#aiInput')&&$q('#aiInput').value.trim())));
+  const busyOrDirty=()=>!!(S.el&&S.open&&(C.on||S.busy||Voice().rec.active||S.atts.length||($q('#aiInput')&&$q('#aiInput').value.trim())));
   window.KoujiAIWorkspace={open,close,busyOrDirty,
     reloadHistory:()=>{if(S.el&&!S.busy){S.conv=newConv();renderAll();renderHistory()}},
     get state(){return S},
