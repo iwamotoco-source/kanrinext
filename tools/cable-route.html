@@ -52,7 +52,7 @@
     </div></aside>
   </div></section>
 </div>
-<script src="./lib/pdf.min.js"></script><script src="../assets/js/cable-route-model.js"></script>
+<script src="./lib/pdf.min.js"></script><script src="../assets/js/cable-route-model.js?v=27"></script>
 <script>
 'use strict';
 (function(){
@@ -67,7 +67,7 @@
   let pdf=null,fileName='',baseW=1,baseH=1,pageNo=1,zoom=1,method='ratio',mPerUnit=0,calPts=[],calPicking=false,draw=false,routes=[],activeId='',renderToken=0;
   const saveKey='koujiNextCableRouteV1';
   function show(id){['stUpload','stSetup','stWork'].forEach(x=>$(x).classList.toggle('on',x===id))}
-  function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function active(){return routes.find(r=>r.id===activeId)||routes[0]}
   function newRoute(){const n=routes.length+1,r={id:'r'+Date.now()+Math.random().toString(36).slice(2,5),name:'回路 '+n,cable:'CV',size:5.5,system:'1p',voltage:200,current:0,loads:[{name:'器具1',amps:'',count:1}],limit:2,temp:75,vertical:0,fixed:2,extra:5,color:COLORS[routes.length%COLORS.length],page:pageNo,points:[]};routes.push(r);activeId=r.id;syncForm();renderRouteList();drawOverlay();calc();persist()}
   function persist(){if(!pdf||!fileName)return;try{localStorage.setItem(saveKey,JSON.stringify({fileName,pageNo,method,mPerUnit,routes,activeId}))}catch(e){}}
