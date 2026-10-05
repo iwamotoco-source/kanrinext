@@ -50,6 +50,7 @@ const ROOT=path.resolve(__dirname,'..'),requests=[];
     assert.equal(await p.evaluate(()=>KoujiAIVoice.rec.active),false);
     await p.evaluate(()=>__tts.onStart());assert.match(await status(),/読み上げ/);
     assert.equal(await p.locator('#aiConversationTalk').isDisabled(),true);
+    await p.evaluate(()=>{__tts.onGenerating(true);__tts.onGenerating(false);});assert.match(await status(),/読み上げ/);
     await finish();assert.match(await status(),/話すボタン/);
     assert.equal(await p.evaluate(()=>__recognizers.length),1,'no automatic mic restart after speaker');
     assert.equal(await p.evaluate(()=>KoujiAI._i.aiCfg().autoSpeak),false);

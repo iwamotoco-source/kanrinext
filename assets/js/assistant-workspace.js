@@ -29,7 +29,7 @@
     $q('#aiConversation').classList.toggle('on',C.on);
     $q('#aiConversationBox').hidden=!C.on;
     $q('#aiSpeakToggle').disabled=C.on;
-    const labels={idle:'話すボタンを押してください',listening:'聞き取り中… 話し終えると送信します',thinking:'AIの回答を待っています…',generating:'端末内で音声を生成しています… 初回は時間がかかります',speaking:'回答を読み上げています…',error:'もう一度試してください'};
+    const labels={idle:'話すボタンを押してください',listening:'聞き取り中… 話し終えると送信します',thinking:'AIの回答を待っています…',generating:'音声を生成しています… 初回は時間がかかります',speaking:'回答を読み上げています…',error:'もう一度試してください'};
     $q('#aiConversationStatus').textContent=C.message||labels[C.phase];
     const b=$q('#aiConversationTalk');
     b.textContent=C.phase==='listening'?'話し終わり':Voice().rec.supported()?'話す':'キーボードで音声入力';
@@ -740,7 +740,7 @@
       Voice().rec.abort();S.recording=false;showRec(false);
       if(C.on)conversationState('generating');
       Voice().tts.speak(m.id,m.text,{
-        onGenerating:on=>{if(C.on&&epoch===C.epoch&&on)conversationState('generating')},
+        onGenerating:on=>{if(C.on&&epoch===C.epoch)conversationState(on?'generating':'speaking')},
         onStart:()=>{if(C.on&&epoch===C.epoch)conversationState('speaking')},
         onError:e=>{failed=true;if(C.on&&epoch===C.epoch)conversationState('error',e||'読み上げできませんでした。回答は画面で確認できます。')},
         onEnd:()=>{const b=S.el.querySelector(`.aiM[data-id="${m.id}"] [data-speak]`);if(b){b.classList.remove('on');b.innerHTML=ic('spk')+'読み上げ'}if(C.on&&epoch===C.epoch&&!failed)conversationState('idle')}
