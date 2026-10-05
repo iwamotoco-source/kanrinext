@@ -156,6 +156,7 @@
       </header>
       <div class="aiWsScroll" id="aiScroll"><div class="aiWsInner" id="aiMsgs" aria-live="polite"></div></div>
       <footer class="aiWsComposer" id="aiComposer">
+        <div id="aiPiperCredit" hidden style="font-size:13px;margin-bottom:6px">音声：つくよみちゃん（© Rei Yumesaki / CV.夢前黎）・無料公開コーパス使用　<a href="./tools/piper-voice.html" target="_blank" rel="noopener">利用条件</a></div>
         <div class="aiCtx" id="aiCtx"></div>
         <div class="aiRec" id="aiRec" hidden><span class="dot"></span><span id="aiRecText">録音中…話してください</span><button class="btn sm" type="button" id="aiRecStop">${ic('stop')}停止</button></div>
         <div class="aiChips" id="aiChips"></div>
@@ -255,6 +256,7 @@
     $q('#aiStatus').innerHTML=!ready?'外部AI：未設定｜予定・タスクの集計は端末内のみ（添付解析・自由な依頼には設定が必要）'
       :c.localOnly?'ローカルのみ｜外部AIへは何も送信しません（端末内の集計だけ）'
       :`外部AI：有効（Vercel → ${esc(PL)}${AI().providerOf(c)==='gemini'&&c.fallbackToOpenAI===true?'／上限時は OpenAI':''}）｜予定・タスクの集計は端末内を優先`;
+    $q('#aiPiperCredit').hidden=c.voiceMode!=='piper';
     const b=$q('#aiSpeakToggle');
     b.innerHTML=ic(c.autoSpeak?'spk':'spkOff');b.setAttribute('aria-pressed',String(!!c.autoSpeak));
     b.title=c.autoSpeak?'自動読み上げ：オン':'自動読み上げ：オフ';
@@ -497,7 +499,7 @@
         sp.innerHTML=ic(on?'stop':'spk')+(on?(gen?'生成中 '+secs()+'秒…停止':'停止'):'読み上げ');
         sp.title=on&&gen?'音声を生成しています…':'';
         /* 生成が長引くとき: 待たずにブラウザ音声へ切り替えられる */
-        const showSk=on&&gen&&secs()>=3;
+        const showSk=on&&gen&&secs()>=3&&(!window.KoujiTTS||KoujiTTS.mode()!=='piper');
         if(showSk&&!sk){sk=document.createElement('button');sk.type='button';sk.className='btn sm ghost';sk.dataset.skip='1';sk.textContent='待たずにブラウザ音声で読む';
           sk.onclick=()=>{if(window.KoujiTTS&&KoujiTTS.skipWait())toast('ブラウザ音声で読み上げます')};sp.after(sk)}
         if(sk)sk.hidden=!showSk;
@@ -506,7 +508,7 @@
         if(Voice().tts.speakingKey===m.id){Voice().tts.stop();gen=false;upd();return}
         if(!Voice().tts.supported()){toast(window.KoujiTTS&&KoujiTTS.mode()==='off'?'読み上げは設定でオフになっています':'このブラウザは読み上げに対応していません');return}
         Voice().tts.unlock();   /* iOS: ユーザー操作の中で音声を解錠（キャラクター音声は Web Audio） */
-        Voice().tts.speak(m.id,m.text,{onStart:()=>{gen=false;upd()},onEnd:()=>{gen=false;upd()},onError:()=>{gen=false;toast('読み上げに失敗しました');upd()},
+        Voice().tts.speak(m.id,m.text,{onStart:()=>{gen=false;upd()},onEnd:()=>{gen=false;upd()},onError:e=>{gen=false;toast(e||'読み上げに失敗しました');upd()},
           onGenerating:g=>{gen=!!g;if(g){t0=performance.now();if(!timer)timer=setInterval(upd,1000)}upd()},onFallback:()=>toast('キャラクター音声に接続できないため、ブラウザ音声で読み上げます')});upd();
       };
     }

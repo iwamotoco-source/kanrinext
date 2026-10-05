@@ -396,8 +396,20 @@
         <div class="hint" style="font-weight:700;margin-bottom:2px">読み上げ音声</div>
         <div class="ttsModes" role="radiogroup" aria-label="読み上げ音声">
           <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="character" ${(c.voiceMode||'character')==='character'?'checked':''}>キャラクター音声（Edge TTS → RVC。自分用のHugging Face Space、または自分のPCのTTSサーバーで生成）</label>
+          <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="piper" ${c.voiceMode==='piper'?'checked':''}>Piper-plus・つくよみちゃん（端末内で生成）</label>
           <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="browser" ${c.voiceMode==='browser'?'checked':''}>ブラウザ標準音声</label>
           <label class="check" style="margin-top:6px"><input type="radio" name="aiVoiceMode" value="off" ${c.voiceMode==='off'?'checked':''}>読み上げなし</label>
+        </div>
+        <div id="aiPiperBox" style="margin-top:10px">
+          <div class="hint">初回に音声モデル・日本語辞書・実行エンジンを取得します（保存容量は約115 MB、通信量は圧縮により変わります）。取得後はオフラインで読み上げられます。回答本文は端末内で処理し、音声サーバー・Geminiへ追加送信しません。</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn sm" type="button" id="aiPiperDownload">音声データを取得</button>
+            <button class="btn sm" type="button" id="aiPiperSample">試し聞き</button>
+            <button class="btn sm" type="button" id="aiPiperStop">停止</button>
+            <button class="btn sm danger" type="button" id="aiPiperDelete">音声データを削除</button>
+          </div>
+          <div id="aiPiperResult" class="hint" style="margin-top:8px" role="status" aria-live="polite"></div>
+          <div class="hint" style="margin-top:8px">本ソフトウェアの音声合成には、フリー素材キャラクター「つくよみちゃん」（© Rei Yumesaki）が無料公開している音声データを使用しています。つくよみちゃんコーパス（CV.夢前黎）／<a href="https://tyc.rei-yumesaki.net/material/corpus/" target="_blank" rel="noopener">コーパス・利用規約</a>／<a href="https://github.com/ayutaz/piper-plus" target="_blank" rel="noopener">Piper-plus</a>／<a href="./tools/piper-voice.html" target="_blank" rel="noopener">音声の利用条件</a>。初回取得後、「保存」で読み上げ音声を切り替えます。</div>
         </div>
         <div id="aiTtsBox" style="margin-top:8px">
           <label style="display:block"><span class="hint">TTSサーバーのURL（空欄 = Vercel経由で自分用のHugging Face Spaceを使う。PCで動かす場合のみ入力）</span><input id="aiTtsEndpoint" type="url" inputmode="url" autocomplete="off" placeholder="例：https://pc名.tailnet名.ts.net　または　http://localhost:8765" style="width:100%" value="${esc(c.ttsEndpoint||'')}"></label>
@@ -441,8 +453,20 @@
             ttsModel:String(v('aiTtsModel')||'').trim(),ttsVoice:String(v('aiTtsVoice')||'').trim()||'ja-JP-NanamiNeural',ttsF0:v('aiTtsF0')==='pm'?'pm':'rmvpe',
             ttsIndexRate:n('aiTtsIndexRate',1),ttsProtect:n('aiTtsProtect',0.33),ttsFilterRadius:n('aiTtsFilterRadius',3),ttsRmsMix:n('aiTtsRmsMix',0.25)}};
         const ttsBox=$b('#aiTtsBox');
-        const syncTts=()=>{const m=(box.querySelector('input[name=aiVoiceMode]:checked')||{}).value;ttsBox.style.display=m==='character'?'':'none'};
+        const syncTts=()=>{const m=(box.querySelector('input[name=aiVoiceMode]:checked')||{}).value;ttsBox.style.display=m==='character'?'':'none';$b('#aiPiperBox').style.display=m==='piper'?'':'none'};
         box.querySelectorAll('input[name=aiVoiceMode]').forEach(r=>r.onchange=syncTts);syncTts();
+        const po=$b('#aiPiperResult'),pd=$b('#aiPiperDownload'),ps=$b('#aiPiperSample'),pr=$b('#aiPiperDelete');
+        const refreshPiper=()=>{const ok=window.KoujiPiper&&KoujiPiper.supported();pd.disabled=!ok;ps.disabled=!ok||!KoujiPiper.installed();pr.disabled=!ok;
+          po.textContent=!ok?'このブラウザでは使えません。ブラウザ標準音声を選んでください。':KoujiPiper.installed()?'音声データ取得済み。「試し聞き」で確認できます。':'未取得です。Wi-Fiでの取得をおすすめします。';};
+        refreshPiper();
+        pd.onclick=async()=>{pd.disabled=true;ps.disabled=true;pr.disabled=true;
+          try{await KoujiPiper.prepare(message=>{po.textContent=message});po.textContent='取得完了。「試し聞き」で確認し、「保存」で切り替えてください。';}
+          catch(e){po.textContent=e.name==='AbortError'?'停止しました。取得済みのファイルを使って再開できます。':'✘ '+e.message;}
+          finally{pd.disabled=false;ps.disabled=!KoujiPiper.installed();pr.disabled=false;}};
+        ps.onclick=()=>{KoujiAIVoice.tts.stop();KoujiPiper.unlock();KoujiPiper.engine.speak('お疲れさまです。今日の予定は5件あります。',{
+          onGenerating:on=>{if(on)po.textContent='端末内で音声を生成しています…'},onStart:()=>{po.textContent='再生中…'},onEnd:()=>{po.textContent='再生しました。'},onError:e=>{po.textContent='✘ '+e}});};
+        $b('#aiPiperStop').onclick=()=>{KoujiAIVoice.tts.stop();po.textContent='停止しました。';};
+        pr.onclick=async()=>{pr.disabled=true;try{await KoujiPiper.remove();refreshPiper();}catch(e){po.textContent='✘ '+e.message;}finally{pr.disabled=false;}};
         const ttsOut=$b('#aiTtsResult');
         $b('#aiTtsTest').onclick=async()=>{ttsOut.textContent='接続を確認しています…';const r=await KoujiTTS.test(readTts());ttsOut.textContent=(r.ok?'✔ ':'✘ ')+r.msg};
         $b('#aiTtsSample').onclick=()=>{

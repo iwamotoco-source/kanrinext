@@ -1,13 +1,14 @@
 /* =========================================================
-   assistant-tts.js — 読み上げ音声ルーター（キャラクター音声 / ブラウザ音声 / なし）
+   assistant-tts.js — 読み上げ音声ルーター（Piper-plus / キャラクター音声 / ブラウザ音声 / なし）
    流れ: Geminiの回答テキスト（すでに取得済みの文字列）→ TTS Router
+         ├ Piper-plus: 専用Workerで端末内生成 → Web Audioで再生（assistant-piper.js）
          ├ キャラクター音声: ローカルTTSサーバー（Edge TTS → RVC）へ POST /tts → WAV を Web Audio で再生
          └ ブラウザ音声   : speechSynthesis（既存の実装）
    ・Gemini / AIプロバイダ / 認証は一切触らない（このファイルからGeminiへは通信しない）
    ・モデル(.pth/.index)はこのリポジトリに存在しない。ユーザーのPCのTTSサーバー側にだけ置く（local-tts/README.md）
    ・口パク: 再生中の音量を AnalyserNode で測り、KoujiAvatar.setMouthLevel() に渡す（closed/half/open）
    ・失敗時: 設定「利用できない場合はブラウザ音声」(既定ON)で speechSynthesis へ切り替え
-   ・キャッシュ: メモリのみ・短時間（業務文章をブラウザへ永続保存しない）
+   ・生成した音声のキャッシュはメモリのみ。Piper-plusのモデル・辞書だけを永続保存する
    ========================================================= */
 'use strict';
 (function(){
@@ -56,7 +57,7 @@
     })();
     return probe.p;
   }
-  const mode=()=>{const m=T().voiceMode;return m==='browser'||m==='off'?m:'character'};
+  const mode=()=>{const m=T().voiceMode;return ['browser','off','piper'].includes(m)?m:'character'};
   /* https のページから http の(localhost以外の)サーバーへは、ブラウザが混在コンテンツとして遮断する */
   function mixedBlocked(url){
     try{const u=new URL(url);return location.protocol==='https:'&&u.protocol==='http:'&&!/^(localhost|127\.|\[::1\])/.test(u.hostname)}catch(e){return false}
@@ -284,14 +285,21 @@
     /* 読み上げが使えるか。「読み上げなし」なら false（🔊ボタン・自動読み上げが無効になる） */
     supported(){
       const m=mode();if(m==='off')return false;
+      if(m==='piper')return !!(window.KoujiPiper&&KoujiPiper.supported());
       const b=V().browser&&V().browser.supported();
       if(m==='character'&&configured()&&characterEngine.supported())return true;
       return !!b;
     },
-    unlock(){const m=mode();if(m==='off')return;if(m==='character'&&configured())unlock();try{V().browser&&V().browser.unlock()}catch(e){}},
+    unlock(){const m=mode();if(m==='off')return;if(m==='piper'){try{KoujiPiper.unlock()}catch(e){}return;}if(m==='character'&&configured())unlock();try{V().browser&&V().browser.unlock()}catch(e){}},
     speak(text,cb={}){
       const be=V().browser,m=mode();
       if(m==='off'){cb.onEnd&&cb.onEnd();return}
+      if(m==='piper'){
+        try{be&&be.stop()}catch(e){}
+        if(window.KoujiPiper)KoujiPiper.engine.speak(text,cb);
+        else cb.onError&&cb.onError('音声エンジンを更新してください');
+        return;
+      }
       const tg0=target(),blocked=tg0&&tg0.kind==='local'&&mixedBlocked(tg0.base);
       if(m==='character'&&tg0&&characterEngine.supported()&&!blocked){
         try{be&&be.stop()}catch(e){}
@@ -300,7 +308,7 @@
       if(m==='character'&&tg0){try{cb.onFallback&&cb.onFallback(blocked?'mixed-content':'unsupported')}catch(e){}}
       if(be&&be.supported())be.speak(text,cb);else cb.onError&&cb.onError('unsupported');
     },
-    stop(){try{characterEngine.stop()}catch(e){}try{V().browser&&V().browser.stop()}catch(e){}}
+    stop(){try{characterEngine.stop()}catch(e){}try{window.KoujiPiper&&KoujiPiper.stop()}catch(e){}try{V().browser&&V().browser.stop()}catch(e){}}
   };
 
   /* ---------- 接続テスト・試し聞き（設定画面から） ---------- */
