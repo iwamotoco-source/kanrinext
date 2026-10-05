@@ -12,6 +12,7 @@ const LINE_COLOR={'小田原線':'#d9483f','江ノ島線':'#3f9e5f','多摩線':
 const WD=['日','月','火','水','木','金','土'];
 
 const TOOLS=[
+  {id:'compress',file:'file-compressor.html',name:'ファイル圧縮',desc:'画像・動画・PDF・Excelを軽くして、一括ダウンロード',icon:'copy'},
   {id:'pdf',file:'pdf-editor.html',name:'PDF整理・編集',desc:'PDFの統合・並べ替え・回転・画像のPDF化',icon:'pdf'},
   {id:'excel',file:'excel-images.html',name:'Excel画像抽出',desc:'.xlsx内の画像をシート別フォルダに振り分けてZIP化',icon:'img'},
   {id:'scale',file:'drawing-scale.html',name:'アナログ図面計測',desc:'縮尺の狂った図面から実寸を算出',icon:'ruler'},
