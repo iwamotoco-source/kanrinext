@@ -1,0 +1,39 @@
+name: Register document generator
+
+on:
+  push:
+    paths:
+      - '.github/workflows/register-document-generator.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Register tool in navigation
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('assets/js/core.js')
+          s=p.read_text(encoding='utf-8')
+          if "id:'docs'" not in s:
+              old="  {id:'fare',file:'odakyu-fare.html',name:'小田急交通費記録',desc:'乗車区間と運賃を記録して月ごとに集計',icon:'ticket'}\n];"
+              new="  {id:'fare',file:'odakyu-fare.html',name:'小田急交通費記録',desc:'乗車区間と運賃を記録して月ごとに集計',icon:'ticket'},\n  {id:'docs',file:'document-generator.html',name:'現場書類作成',desc:'現場名を差し込み、登録ひな形からExcel書類を一括生成',icon:'copy'}\n];"
+              if old not in s:
+                  raise SystemExit('TOOLS block anchor not found')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+          r=Path('README.md')
+          txt=r.read_text(encoding='utf-8')
+          txt=txt.replace('PDF整理・Excel画像抽出・図面計測・数量拾い・電気計算・交通費記録（アプリ内で表示）','PDF整理・Excel画像抽出・現場書類作成・図面計測・数量拾い・電気計算・交通費記録（アプリ内で表示）')
+          r.write_text(txt,encoding='utf-8')
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/js/core.js README.md
+          git commit -m "現場書類作成をツールメニューに登録"
+          git push
