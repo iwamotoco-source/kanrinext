@@ -1,0 +1,26 @@
+// Verify the real request builder; no provider calls or external traffic.
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const {createRequire}=require('node:module');
+const file=path.resolve(__dirname,'../api/ai.js');
+const box={require:createRequire(file),module:{exports:{}},process,Buffer,console,setTimeout,clearTimeout,AbortController};
+vm.runInNewContext(fs.readFileSync(file,'utf8')+'\nmodule.exports.test={safeWeather,buildWorkspaceInput};',box);
+const {safeWeather,buildWorkspaceInput}=box.module.exports.test;
+const weather={place:'テスト地点',fetchedAt:Date.now(),days:[{date:'2026-10-06',weatherCode:61,maxC:24,minC:18,rainPercent:70}],lat:35,lon:139};
+const req=buildWorkspaceInput({today:'2026-10-05',messages:[{role:'user',text:'明日の天気は？'}],context:{weather},options:{actions:true}},{headers:{}});
+assert.equal(req.ok,true);assert.match(req.req.parts[0].text,/テスト地点/);assert.match(req.req.parts[0].text,/2026-10-06/);
+assert.doesNotMatch(req.req.parts[0].text,/"lat"|"lon"/);
+assert.match(req.req.system,/登録データが無いことを理由に断らない/);
+assert.match(req.req.system,/外部検索機能は無い/);
+assert.match(req.req.system,/ユーザーが承認した後/);
+assert.equal(safeWeather({...weather,fetchedAt:Date.now()-7*3600000}),null);
+assert.equal(safeWeather({...weather,days:[{date:'bad'}]}),null);
+assert.equal(safeWeather({...weather,days:[{date:'2026-10-06',maxC:999,rainPercent:200}]}).days[0].maxC,null);
+const app=fs.readFileSync(path.resolve(__dirname,'../assets/js/app.js'),'utf8');
+const start=app.indexOf('window.KoujiWeatherContext=function()'),end=app.indexOf('\nfunction renderWeather',start);
+const cfg={name:'テスト地点',lat:35,lon:139};let cache={at:Date.now(),placeKey:JSON.stringify([cfg.name,cfg.lat,cfg.lon]),data:{daily:{time:['2026-10-06'],weather_code:[61],temperature_2m_max:[24],temperature_2m_min:[18],precipitation_probability_max:[70]}}};
+const browser={window:{},state:{settings:{weather:cfg}},WX_KEY:'test',loadJSON:()=>cache};
+vm.runInNewContext(app.slice(start,end),browser);
+assert.equal(browser.window.KoujiWeatherContext().days[0].rainPercent,70);
+cfg.name='別地点';assert.equal(browser.window.KoujiWeatherContext(),null);
+cfg.name='テスト地点';cache.at-=7*3600000;assert.equal(browser.window.KoujiWeatherContext(),null);
+console.log('Chat request context, forecast freshness/location and approval rules: PASS');

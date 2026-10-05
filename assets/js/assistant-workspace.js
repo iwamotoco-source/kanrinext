@@ -776,6 +776,8 @@
           ...built.texts.map(t=>({kind:'text',name:t.name,label:t.label,text:t.text}))
         ],
         options:{actions:cfg().actionsEnabled!==false}};
+      const weather=!ctx.off&&window.KoujiWeatherContext?.();
+      if(weather)body.context.weather=weather;
       const data=await AI().postAi(cfg(),body,{signal:S.ctrl.signal});
       think.remove();
       if(!data||!data.answer)throw new (AI().AiError)('AIから回答を取得できませんでした','EMPTY_RESPONSE','server');
@@ -783,12 +785,14 @@
       const acts=Act().normalize(meta.actions||[]);
       const sentBits=[];
       if(!ctx.off&&ctx.payload)sentBits.push(`予定${ctx.counts.events}件・タスク${ctx.counts.tasks}件`);
+      if(weather)sentBits.push('天気予報');
       if(built.stats.images)sentBits.push(`画像${built.stats.images}枚`);
       if((built.pdfs||[]).length)sentBits.push(`PDF原本${built.pdfs.length}件`);
       if(built.texts.length)sentBits.push(`テキスト約${built.stats.chars.toLocaleString()}文字`);
       /* 「参照」は、AIが言った内容ではなく、実際に送ったデータから作る（送っていないものを参照したことにしない） */
       const refs=[];
       if(!ctx.off&&ctx.payload){if(ctx.counts.events)refs.push('予定');if(ctx.counts.tasks)refs.push('タスク')}
+      if(weather)refs.push('天気予報（'+weather.place+'）');
       names.forEach(n=>refs.push(n));
       const m=addBot({id:mid(),role:'bot',mode:'remote',provider:data.provider||AI().providerOf(cfg()),model:data.model||'',fallbackFrom:data.fallbackFrom||'',text:String(data.answer),ts:Date.now(),
         stations:meta.stations||[],refs,attachments:userMsg.attachments,actions:acts,sent:sentBits.join('・')});

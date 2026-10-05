@@ -88,9 +88,16 @@ function wxText(c){if(c===0)return'快晴';if([1,2].includes(c))return'晴れ';i
 async function loadWeather(){
   const w=state.settings.weather||DEFAULT_STATE.settings.weather;
   try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=7`;
-    const r=await fetch(url);if(!r.ok)throw 0;weatherCache=await r.json();saveJSON(WX_KEY,{at:Date.now(),data:weatherCache});renderWeather()}
+    const r=await fetch(url);if(!r.ok)throw 0;weatherCache=await r.json();saveJSON(WX_KEY,{at:Date.now(),data:weatherCache,placeKey:JSON.stringify([w.name,w.lat,w.lon])});renderWeather()}
   catch(e){const c=loadJSON(WX_KEY,null);if(c?.data){weatherCache=c.data;renderWeather(new Date(c.at))}else{$('wxText').textContent=`${w.name}：天気を取得できません（オフライン）`;$('wxCells').innerHTML=''}}
 }
+// Reuse the home forecast, without another request or sending coordinates to AI.
+window.KoujiWeatherContext=function(){
+  const w=state.settings.weather,c=loadJSON(WX_KEY,null);
+  if(!w||!c||c.placeKey!==JSON.stringify([w.name,w.lat,w.lon])||!Number.isFinite(c.at)||Math.abs(Date.now()-c.at)>6*3600000||!c.data?.daily)return null;
+  const d=c.data.daily;
+  return {place:w.name,source:'Open-Meteo',fetchedAt:c.at,days:(d.time||[]).slice(0,7).map((date,i)=>({date,weatherCode:d.weather_code?.[i],maxC:d.temperature_2m_max?.[i],minC:d.temperature_2m_min?.[i],rainPercent:d.precipitation_probability_max?.[i]}))};
+};
 function renderWeather(stale){
   const d=weatherCache;if(!d?.current)return;const w=state.settings.weather;const c=d.current;
   $('wxIcon').innerHTML=wxIcon(c.weather_code);$('wxTemp').textContent=Math.round(c.temperature_2m)+'℃';
