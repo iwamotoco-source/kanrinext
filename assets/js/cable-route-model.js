@@ -7,5 +7,6 @@ function catalog(type){return catalogs[type]||catalogs['その他'];}
 function resistance(r,size=r.size){const c=catalog(r.cable),area=c.diameter?Math.PI*size*size/4:Number(size);if(r.customR&&Number.isFinite(+r.r20)&&+r.r20>0)return{r20:+r.r20,area,basis:'入力した20℃導体抵抗'};if(r.cable==='VVF')return{r20:vvf[size],area,basis:'SFCC VVF：最大導体抵抗（20℃）'};if(r.cable==='VVR'&&vvr[size])return{r20:vvr[size],area,basis:'SFCC VVR：最大導体抵抗（20℃）'};return{r20:17.8/area,area,basis:'銅の抵抗率0.0178 Ω·mm²/mによる概算（製品値ではない）'};}
 function calculate(r,length,size=r.size){const b=resistance(r,size),factor=1+0.00393*(Number(r.temp)-20),rt=b.r20*factor,k=r.system==='3p'?Math.sqrt(3):2,dv=k*Number(r.current)*length*rt/1000;return{...b,factor,rt,k,dv,pct:dv/Number(r.voltage)*100};}
 function label(type,size){return catalog(type).diameter?size+' mm径':size+' mm²';}
-root.CableRouteModel={catalogs,catalog,resistance,calculate,label};
+function sumLoads(loads){if(!Array.isArray(loads)||!loads.length)return{valid:false,current:NaN,count:0};let current=0,count=0;for(const l of loads){if(l.amps===''||l.amps==null||l.count===''||l.count==null||!Number.isFinite(+l.amps)||+l.amps<0||!Number.isSafeInteger(+l.count)||+l.count<0)return{valid:false,current:NaN,count:0};current+=Number(l.amps)*Number(l.count);count+=Number(l.count);}return{valid:Number.isFinite(current)&&Number.isSafeInteger(count),current,count};}
+root.CableRouteModel={sumLoads,catalogs,catalog,resistance,calculate,label};
 })(typeof window!=='undefined'?window:globalThis);
