@@ -18,6 +18,9 @@
 2. Settings → Pages → Source を **GitHub Actions** にする（`.github/workflows/pages.yml` が自動デプロイ）
 3. iPhone は Safari の「ホーム画面に追加」でアプリとして使えます
 
+### ローカル用の単一HTML
+設定 → バックアップ → 「単一HTMLを保存する」で、アプリ全体を1つのHTMLファイル（約7MB）として保存できます。ネットなしで開けます（地図の背景・天気・AI通信・GitHub同期・動画圧縮を除く）。詳しくは [docs/standalone-html.md](docs/standalone-html.md)。
+
 ### 端末間の同期
 設定 → GitHub同期 に Owner / Repository / Token（Fine-grained, Contents: Read and write）を入力。
 最終更新が新しい方のデータを採用します。Token は端末内にのみ保存されます。
@@ -50,6 +53,7 @@
 ```
 index.html            アプリ本体
 assets/css, js        画面とロジック（file:// でも動く通常スクリプト）
+  standalone-export.js  設定から呼ばれる単一HTML書き出し
 assets/vendor/leaflet 地図ライブラリ
 tools/                各ツール（tools/lib に同梱ライブラリ）
 icons/ manifest.json service-worker.js   PWA
