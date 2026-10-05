@@ -16,6 +16,7 @@ const TOOLS=[
   {id:'excel',file:'excel-images.html',name:'Excel画像抽出',desc:'.xlsx内の画像をシート別フォルダに振り分けてZIP化',icon:'img'},
   {id:'scale',file:'drawing-scale.html',name:'アナログ図面計測',desc:'縮尺の狂った図面から実寸を算出',icon:'ruler'},
   {id:'takeoff',file:'quantity-takeoff.html',name:'数量拾い',desc:'図面上に器具をプロットして数量を集計',icon:'count'},
+  {id:'knowledge',file:'electrical-knowledge.html',name:'電気技術データベース',desc:'接地・配管・照明・EVなど129テーマの解説と検索',icon:'bolt'},
   {id:'elec',file:'electrical-calc.html',name:'電気お手軽計算',desc:'電圧降下・許容電流・接地・配管サイズなど',icon:'bolt'},
   {id:'fare',file:'odakyu-fare.html',name:'小田急交通費記録',desc:'乗車区間と運賃を記録して月ごとに集計',icon:'ticket'},
   {id:'docs',file:'document-generator.html',name:'現場書類作成',desc:'現場名を差し込み、登録ひな形からExcel書類を一括生成',icon:'copy'}

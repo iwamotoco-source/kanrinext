@@ -55,3 +55,7 @@ tools/                各ツール（tools/lib に同梱ライブラリ）
 icons/ manifest.json service-worker.js   PWA
 インストール.cmd / アンインストール.cmd     駅フォルダを開くための Windows 登録
 ```
+
+### 電気技術データベース
+
+ツール一覧の「電気技術データベース」から、独自概説129テーマと版・適用条件を示した21項目の仕様を検索できます。個人メモ・お気に入り・JSON書出しに対応します。[収録範囲と更新方法](docs/electrical-knowledge.md)を参照してください。
