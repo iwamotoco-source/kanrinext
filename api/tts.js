@@ -16,10 +16,11 @@
 'use strict';
 
 const {createHash,timingSafeEqual}=require('crypto');
+const {setCors,burst,bodyAllowed}=require('./_lib/security');
 const {cleanSecret,redact}=require('./_lib/util');
 
 const DEFAULT_ORIGIN='https://iwamotoco-source.github.io';
-const BUILD_ID='tts-proxy-v1-20261004';
+const BUILD_ID='tts-security-20261007';
 const MAX_TEXT=400,MAX_BODY=16*1024,SPACE_TIMEOUT_MS=50000;
 /* mikuTTS Space（app.py）の既定値 */
 const DEF={model:'1a_miku_default_rvc_(aple)',voice:'ja-JP-NanamiNeural',pitch:6,f0:'rmvpe',indexRate:1,protect:0.33,speed:0,volume:0};
@@ -33,19 +34,7 @@ function checkAccess(supplied){
   if(!got)return 'ACCESS_KEY_MISSING';
   return timingSafeEqual(digest(got),digest(expected))?null:'ACCESS_KEY_INVALID';
 }
-function setCors(req,res){
-  const origin=normOrigin(req.headers.origin||'');
-  const allowed=String(process.env.ALLOWED_ORIGIN||DEFAULT_ORIGIN).split(',').map(normOrigin).filter(Boolean);
-  const local=/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  const ok=!origin||allowed.includes('*')||allowed.includes(origin)||origin===DEFAULT_ORIGIN||local;
-  res.setHeader('Vary','Origin');
-  if(origin&&ok)res.setHeader('Access-Control-Allow-Origin',origin);
-  res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type, X-App-Key');
-  res.setHeader('Access-Control-Max-Age','600');
-  res.setHeader('Cache-Control','no-store');
-  return ok;
-}
+
 const MESSAGES={
   ORIGIN_NOT_ALLOWED:'このサイトからは利用できません',
   ACCESS_TOKEN_NOT_CONFIGURED:'Vercel側に APP_ACCESS_TOKEN が設定されていません',
@@ -57,6 +46,7 @@ const MESSAGES={
   SPACE_ERROR:'音声Spaceでエラーが発生しました',
   TIMEOUT:'音声の生成に時間がかかりすぎました',
   BAD_REQUEST:'リクエストが不正です',
+  PAYLOAD_TOO_LARGE:'送信データが大きすぎます',
   TEXT_TOO_LONG:'文章が長すぎます'
 };
 function fail(res,status,code,detail){
@@ -93,13 +83,13 @@ function parseSse(text){
 async function callSpace(base,payload,signal){
   const token=cleanSecret(process.env.HF_TOKEN);
   const headers={'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})};
-  let r=await fetch(base+'/gradio_api/call/tts',{method:'POST',headers,body:JSON.stringify({data:payload}),signal});
+  let r=await fetch(base+'/gradio_api/call/tts',{method:'POST',headers,body:JSON.stringify({data:payload}),signal,redirect:'error'});
   if(r.status===401||r.status===403||r.status===404&&token)throw Object.assign(new Error('auth'),{code:'SPACE_AUTH'});
   if(r.status===503||r.status===502||r.status===504||r.status===404)throw Object.assign(new Error('starting'),{code:'SPACE_STARTING'});
   if(!r.ok)throw Object.assign(new Error('HTTP '+r.status),{code:'SPACE_ERROR'});
   const {event_id}=await r.json();
   if(!event_id)throw Object.assign(new Error('no event_id'),{code:'SPACE_ERROR'});
-  r=await fetch(base+'/gradio_api/call/tts/'+encodeURIComponent(event_id),{headers:token?{Authorization:'Bearer '+token}:{},signal});
+  r=await fetch(base+'/gradio_api/call/tts/'+encodeURIComponent(event_id),{headers:token?{Authorization:'Bearer '+token}:{},signal,redirect:'error'});
   if(!r.ok)throw Object.assign(new Error('HTTP '+r.status),{code:'SPACE_ERROR'});
   const ev=parseSse(await r.text());
   if(!ev||ev.event==='error')throw Object.assign(new Error('space error'),{code:'SPACE_ERROR'});
@@ -117,7 +107,7 @@ async function fetchAudio(base,file,signal){
   let u;try{u=new URL(url,base+'/')}catch(e){throw Object.assign(new Error('bad url'),{code:'SPACE_ERROR'})}
   if(u.origin!==new URL(base).origin)throw Object.assign(new Error('foreign host'),{code:'SPACE_ERROR'});
   const token=cleanSecret(process.env.HF_TOKEN);
-  const r=await fetch(u.href,{headers:token?{Authorization:'Bearer '+token}:{},signal});
+  const r=await fetch(u.href,{headers:token?{Authorization:'Bearer '+token}:{},signal,redirect:'error'});
   if(!r.ok)throw Object.assign(new Error('audio HTTP '+r.status),{code:'SPACE_ERROR'});
   const buf=Buffer.from(await r.arrayBuffer());
   if(!buf.length)throw Object.assign(new Error('empty audio'),{code:'SPACE_ERROR'});
@@ -126,8 +116,10 @@ async function fetchAudio(base,file,signal){
 
 module.exports=async function handler(req,res){
   const corsOk=setCors(req,res);
-  if(req.method==='OPTIONS')return res.status(204).end();
+  if(req.method==='OPTIONS')return corsOk?res.status(204).end():fail(res,403,'ORIGIN_NOT_ALLOWED');
   if(!corsOk)return fail(res,403,'ORIGIN_NOT_ALLOWED');
+  if(!burst(req,res,'tts.js-all',240))return;
+  if(req.method==='GET'){const authErr=checkAccess(req.headers['x-app-key']);if(authErr)return fail(res,authErr==='ACCESS_TOKEN_NOT_CONFIGURED'?500:401,authErr);}
   if(req.method==='GET'){
     return res.status(200).json({ok:true,service:'kouji-next-tts-proxy',build:BUILD_ID,
       spaceConfigured:!!spaceBase(),tokenConfigured:!!cleanSecret(process.env.HF_TOKEN),
@@ -136,6 +128,8 @@ module.exports=async function handler(req,res){
   if(req.method!=='POST')return fail(res,405,'BAD_REQUEST','POST only');
   const authErr=checkAccess(req.headers['x-app-key']);
   if(authErr)return fail(res,authErr==='ACCESS_TOKEN_NOT_CONFIGURED'?500:401,authErr);
+  if(!burst(req,res,'tts.js-auth',180))return;
+  if(!bodyAllowed(req,MAX_BODY))return fail(res,413,'PAYLOAD_TOO_LARGE');
   const base=spaceBase();
   if(!base)return fail(res,503,'SPACE_NOT_CONFIGURED');
 

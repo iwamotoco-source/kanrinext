@@ -1,4 +1,5 @@
-(() => {
+(async() => {
+await KoujiSecurity.ready;
 'use strict';
 const db=window.ELECTRICAL_KNOWLEDGE, $=id=>document.getElementById(id), key='kanrinextElectricalPersonalV1';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6,8 +7,8 @@ const norm=s=>String(s).normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g,c=>
 const ids=new Set(db.entries.map(e=>e.id));let personal={version:1,favorites:[],notes:{}}, selected=null;
 const message=s=>{$('status').textContent=s;};
 function validate(p){if(!p||p.version!==1||!Array.isArray(p.favorites)||!p.notes||typeof p.notes!=='object'||Array.isArray(p.notes))throw Error('メモファイルの形式が違います');if(p.favorites.some(id=>!ids.has(id)))throw Error('未登録のテーマがあります');for(const [id,note] of Object.entries(p.notes))if(!ids.has(id)||typeof note!=='string'||note.length>20000)throw Error('メモの内容が不正です');return p;}
-try{const saved=localStorage.getItem(key);if(saved)personal=validate(JSON.parse(saved));}catch(e){message('保存済みメモを読み込めませんでした。バックアップを確認してください。');}
-function save(){try{localStorage.setItem(key,JSON.stringify(personal));message('個人メモを保存しました');}catch(e){message('このブラウザに保存できません。メモのバックアップをご利用ください。');}}
+try{const saved=KoujiSecurity.getText(key);if(saved)personal=validate(JSON.parse(saved));}catch(e){message('保存済みメモを読み込めませんでした。バックアップを確認してください。');}
+function save(){try{KoujiSecurity.write(key,personal);message('個人メモを保存しました');}catch(e){message('このブラウザに保存できません。メモのバックアップをご利用ください。');}}
 const aliases={'あーす':'接地','ぶれーかー':'遮断器','もーたー':'電動機','めがー':'絶縁','配管':'管','ev':'電気自動車'};
 const searchText=new Map(db.entries.map(e=>[e.id,norm([e.title,e.category,e.summary,e.body,...e.keywords,...e.checks,JSON.stringify(e.rules||[])].join(' '))]));
 function filtered(){const terms=norm($('query').value).trim().split(/\s+/).filter(Boolean).map(t=>aliases[t]||t);return db.entries.filter(e=>(!$('category').value||e.category===$('category').value)&&(!$('favorites').checked||personal.favorites.includes(e.id))&&(!$('specifications').checked||e.rules?.length)&&terms.every(t=>searchText.get(e.id).includes(t))).sort((a,b)=>(terms.filter(t=>norm(b.title).includes(t)).length-terms.filter(t=>norm(a.title).includes(t)).length));}

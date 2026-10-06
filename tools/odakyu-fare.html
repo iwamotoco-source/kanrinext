@@ -183,7 +183,8 @@ td.today{outline:2px solid #536a9d!important}.overlay{background:rgba(0,0,0,.68)
   </div>
 </div>
 
-<script>
+<script src="../assets/js/security-store.js?v=20261007-sec1"></script><script>
+(async()=>{await KoujiSecurity.ready;
 /* ===== 小田急線 駅データ：町田からの経路キロ程 ===== */
 const ST = {
   "町田":{km:0},
@@ -265,7 +266,7 @@ const STATIONS=Object.keys(ST).filter(s=>s!=="町田");
 
 /* ===== 状態 ===== */
 const KEY="odakyu_fare_note_v2";
-let data=JSON.parse(localStorage.getItem(KEY)||"{}");
+let data=JSON.parse(KoujiSecurity.getText(KEY)||"{}");
 let ft="ic";
 let cur=new Date(), Y=cur.getFullYear(), M=cur.getMonth();
 let editKey=null;
@@ -393,7 +394,7 @@ function renderExisting(k){
 }
 
 /* ===== 保存・入出力 ===== */
-function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function save(){KoujiSecurity.write(KEY,data);}
 function clearMonth(){
   if(!confirm(`${Y}年${M+1}月の記録を全部消しますか？`))return;
   const pre=`${Y}-${String(M+1).padStart(2,"0")}-`;
@@ -415,6 +416,7 @@ function importData(ev){
 }
 
 render();
+})();
 </script>
 </body>
 </html>

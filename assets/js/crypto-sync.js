@@ -8,11 +8,11 @@
   const PASS_KEY='koujiNextCryptoPassSessionV1';
   const FORMAT='kouji-next-encrypted-v1';
   const AAD='工事管理next|github-sync|v1';
-  const DEFAULT_CFG={enabled:true,iterations:250000};
+  const DEFAULT_CFG={enabled:true,iterations:600000};
 
   function cfg(){
     const v=loadJSON(CFG_KEY,null);
-    return Object.assign({},DEFAULT_CFG,v||{});
+    return Object.assign({},DEFAULT_CFG,v||{},{enabled:true,iterations:600000});
   }
   function saveCfg(v){saveJSON(CFG_KEY,Object.assign({},cfg(),v||{}))}
   function sessionPass(){try{return sessionStorage.getItem(PASS_KEY)||''}catch(e){return ''}}
@@ -43,11 +43,12 @@
     };
   }
   async function decryptPayload(env,pass){
-    if(!isEncrypted(env))return env;
-    const meta=env.crypto||{},salt=b64ToBytes(meta.salt),iv=b64ToBytes(meta.iv),iterations=Math.max(100000,+meta.iterations||250000);
+    if(!isEncrypted(env))throw new Error('暗号化ファイルの形式が違います');
+    const meta=env.crypto||{},salt=b64ToBytes(meta.salt),iv=b64ToBytes(meta.iv),iterations=Number(meta.iterations);
+    if(meta.alg!=='AES-256-GCM'||meta.kdf!=='PBKDF2-SHA-256'||!Number.isInteger(iterations)||iterations<100000||iterations>2000000||salt.length!==16||iv.length!==12||typeof env.ciphertext!=='string'||env.ciphertext.length>16*1024*1024)throw new Error('暗号化ファイルの設定が不正です');
     const key=await keyFromPassword(pass,salt,iterations);
     const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(AAD),tagLength:128},key,b64ToBytes(env.ciphertext));
-    return JSON.parse(new TextDecoder().decode(pt));
+    return KoujiSecurity.parse(new TextDecoder().decode(pt));
   }
   function isEncrypted(x){return !!(x&&x.encrypted===true&&x.format===FORMAT&&x.crypto&&x.ciphertext)}
 
@@ -74,24 +75,26 @@
 
   async function remoteRaw(){
     const g=localCfg.github;
-    const r=await fetch(ghUrl()+`?ref=${encodeURIComponent(g.branch||'main')}`,{headers:ghHeaders(),cache:'no-store'});
+    const r=await fetch(ghUrl()+`?ref=${encodeURIComponent(g.branch||'main')}`,{headers:ghHeaders(),cache:'no-store',redirect:'error'});
     if(r.status===404)return null;
     if(!r.ok)throw new Error('GitHub '+r.status);
     const x=await r.json(),bin=atob((x.content||'').replace(/\n/g,''));
     const txt=new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));
-    return {sha:x.sha,raw:JSON.parse(txt)};
+    return {sha:x.sha,raw:KoujiSecurity.parse(txt)};
   }
   async function putRemote(payload,sha,{encrypt,pass}){
     const g=localCfg.github;
-    const stored=encrypt?await encryptPayload(payload,pass):payload;
+    if(!encrypt||!pass)throw new Error('平文でのGitHub保存は無効です');
+    const stored=await encryptPayload(payload,pass);
     const body={message:`工事管理next ${encrypt?'暗号化':''}同期 ${new Date().toLocaleString('ja-JP')}`,content:b64utf8(JSON.stringify(stored,null,2)),branch:g.branch||'main'};
     if(sha)body.sha=sha;
-    const r=await fetch(ghUrl(),{method:'PUT',headers:{...ghHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const r=await fetch(ghUrl(),{method:'PUT',headers:{...ghHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error'});
     if(!r.ok)throw new Error('GitHub '+r.status);
     return r.json();
   }
   async function decodeRemote(remote,promptUser){
     if(!remote)return null;
+    if(remote.raw?.encrypted&&!isEncrypted(remote.raw))throw new Error('未対応の暗号化形式です');
     if(!isEncrypted(remote.raw))return {sha:remote.sha,payload:remote.raw,encrypted:false};
     let pass=sessionPass();
     if(!pass&&promptUser)pass=await askPassword();
@@ -152,6 +155,12 @@
 
   /* core.js の同期処理を安全版へ差し替え。scheduleSync / 自動同期タイマーも実行時にこの関数を参照する。 */
   syncNow=secureSyncNow;
+  // Disable the former plain-text write path as well.
+  ghPut=async function(payload,sha){const pass=sessionPass();if(!pass)throw Error('同期パスワードが必要です');return putRemote(payload,sha,{encrypt:true,pass})};
+  window.KoujiCrypto={encryptPayload,decryptPayload,isEncrypted,
+    async exportBackup(){try{const pass=await askPassword();if(!pass)return;const env=await encryptPayload(syncPayload(),pass);downloadText('kouji-next_backup_'+todayISO()+'.encrypted.json',JSON.stringify(env,null,2),'application/json');toast('暗号化バックアップを書き出しました')}catch(e){toast('バックアップを保存できませんでした')}},
+    async openBackup(env){const pass=await askPassword();return pass?decryptPayload(env,pass):null}
+  };
 
   /* 設定画面に暗号化設定を追加。app.js読込後に差し替える */
   function installSettingsPatch(){
@@ -162,13 +171,13 @@
     const sec=document.querySelector('.setSec[data-sec="sync"]');if(!sec||sec.querySelector('#syncEncrypt'))return;
     const c=cfg(),box=document.createElement('div');box.className='cryptoBox';
     box.innerHTML=`<h4>同期データの暗号化</h4>
-      <label class="check"><input type="checkbox" id="syncEncrypt" ${c.enabled?'checked':''}> GitHubへ保存する予定・タスク・設定を暗号化する</label>
+      <label class="check"><input type="checkbox" id="syncEncrypt" checked disabled> GitHubへ保存する予定・タスク・設定を暗号化する</label>
       <div class="grid2 cryptoFields">
         <div class="field"><label>同期パスワード</label><input type="password" id="syncCryptoPass" autocomplete="new-password" placeholder="${sessionPass()?'このセッションでは入力済み':'8文字以上'}"></div>
         <div class="field"><label>確認</label><input type="password" id="syncCryptoPass2" autocomplete="new-password" placeholder="もう一度入力"></div>
       </div>
       <div class="row cryptoStatus"><span class="hint" id="cryptoState">${sessionPass()?'このセッションでは復号可能です':'パスワードは端末に永続保存されません'}</span><button class="btn sm ghost" type="button" id="cryptoForget">このセッションの鍵を破棄</button></div>
-      <p class="hint">AES-256-GCM / PBKDF2-SHA-256（250,000回）。GitHub上には暗号文・salt・IVのみ保存します。既存の平文同期ファイルは、次の同期時に同じ場所で暗号化形式へ移行します。過去のGitコミット履歴に残った平文は別途削除が必要です。</p>`;
+      <p class="hint">AES-256-GCM / PBKDF2-SHA-256（600,000回）。GitHub上には暗号文・salt・IVのみ保存します。既存の平文同期ファイルは、次の同期時に同じ場所で暗号化形式へ移行します。過去のGitコミット履歴に残った平文は別途削除が必要です。</p>`;
     const grid=sec.querySelector('.grid2');sec.insertBefore(box,grid||sec.firstChild);
 
     if(!document.getElementById('cryptoSyncStyle')){
@@ -176,7 +185,7 @@
     }
     const en=box.querySelector('#syncEncrypt'),p1=box.querySelector('#syncCryptoPass'),p2=box.querySelector('#syncCryptoPass2'),status=box.querySelector('#cryptoState');
     const prep=()=>{
-      const on=en.checked,a=p1.value,b=p2.value;
+      const on=true,a=p1.value,b=p2.value;
       if(on&&a){
         if(a.length<8){toast('同期パスワードは8文字以上にしてください');p1.focus();return false}
         if(a!==b){toast('同期パスワードの確認入力が一致しません');p2.focus();return false}

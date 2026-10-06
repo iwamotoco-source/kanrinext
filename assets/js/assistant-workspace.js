@@ -98,9 +98,10 @@
   const tagColor={PDF:'pdf',XLS:'xls',CSV:'xls',IMG:'img',DOC:'doc',TXT:'txt'};
   function chipHtml(a,{x=false,state=''}={}){
     const tag=a.tag||(Files().TAG[a.kind])||'FILE';
+    const thumb=typeof a.thumb==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(a.thumb)?a.thumb:'';
     const sub=a.status==='loading'?'解析中…':a.error?esc(a.error):esc(a.summary||'');
-    return `<span class="aiChip ${tagColor[tag]||''} ${a.error?'err':''} ${a.status==='loading'?'busy':''} ${state}" data-aid="${esc(a.id||'')}">
-      ${a.thumb?`<img src="${esc(a.thumb)}" alt="">`:''}<span class="tag">${esc(tag)}</span><span class="nm" title="${esc(a.name)}">${esc(a.name)}</span>${sub?`<span class="sub">${sub}</span>`:''}
+    return `<span class="aiChip ${tagColor[tag]||''} ${a.error?'err':''} ${a.status==='loading'?'busy':''} ${esc(state)}" data-aid="${esc(a.id||'')}">
+      ${thumb?`<img src="${esc(thumb)}" alt="">`:''}<span class="tag">${esc(tag)}</span><span class="nm" title="${esc(a.name)}">${esc(a.name)}</span>${sub?`<span class="sub">${sub}</span>`:''}
       ${x?`<button type="button" class="x" data-rm="${esc(a.id)}" aria-label="添付を削除">${icon('x','i','width:13px;height:13px')}</button>`:''}</span>`;
   }
 

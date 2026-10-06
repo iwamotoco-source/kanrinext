@@ -14,8 +14,8 @@ function closeDrawers(){document.body.classList.remove('railOpenM','paneOpenM','
 /* ---------- ナビ ---------- */
 function renderNav(){
   $('toolNav').innerHTML=TOOLS.map(t=>`<a class="nav" href="#tool/${t.id}" data-route="tool/${t.id}" title="${esc(t.desc)}">${icon(t.icon)}<span class="lbl">${esc(t.name)}</span></a>`).join('');
-  $('catalogNav').innerHTML=CATALOGS.map(c=>`<a class="nav" href="${esc(c.url)}" target="_blank" rel="noopener">${icon('book')}<span class="lbl">${esc(c.title)}</span>${icon('ext','i ext')}</a>`).join('');
-  $('bookmarkNav').innerHTML=(state.bookmarks||[]).map(b=>`<a class="nav" href="${esc(b.url)}" target="_blank" rel="noopener">${icon('link')}<span class="lbl">${esc(b.title||b.url)}</span>${icon('ext','i ext')}</a>`).join('')||`<button class="nav" type="button" data-addbm><span class="lbl" style="color:var(--ink-3)">＋ 設定から追加</span></button>`;
+  $('catalogNav').innerHTML=CATALOGS.map(c=>`<a class="nav" href="${esc(safeWebUrl(c.url))}" target="_blank" rel="noopener">${icon('book')}<span class="lbl">${esc(c.title)}</span>${icon('ext','i ext')}</a>`).join('');
+  $('bookmarkNav').innerHTML=(state.bookmarks||[]).map(b=>`<a class="nav" href="${esc(safeWebUrl(b.url))}" target="_blank" rel="noopener">${icon('link')}<span class="lbl">${esc(b.title||b.url)}</span>${icon('ext','i ext')}</a>`).join('')||`<button class="nav" type="button" data-addbm><span class="lbl" style="color:var(--ink-3)">＋ 設定から追加</span></button>`;
   $('bookmarkNav').querySelector('[data-addbm]')?.addEventListener('click',()=>openSettings('bookmarks'));
   $$('.navGroup[data-group]').forEach(g=>{g.classList.toggle('closed',!!localCfg.navClosed?.[g.dataset.group]);g.querySelector('.navHead').onclick=()=>{localCfg.navClosed=localCfg.navClosed||{};localCfg.navClosed[g.dataset.group]=!localCfg.navClosed[g.dataset.group];saveLocal();g.classList.toggle('closed')}});
   markNav();
@@ -229,7 +229,7 @@ function paletteItems(q){
   acts.forEach(([n,ic,run,kw])=>{if(hit(n,kw))out.push({sec:'操作',icon:ic,label:n,sub:'',run})});
   if(k&&k.length>=1){const from=addDays(todayISO(),-180),to=addDays(todayISO(),365);occurrencesBetween(from,to,{query:q}).filter(o=>o.date>=todayISO()).slice(0,6).forEach(o=>out.push({sec:'予定',icon:'clock',label:o.title,sub:fmtMDW(o.date)+(o.allDay?' 終日':' '+o.start),run:()=>{routeTo('calendar');cal.anchor=o.date;cal.view=cal.view==='list'||cal.view==='month'?'day':cal.view;renderCalendar()}}));
     state.tasks.filter(t=>!t.done&&norm(t.title+' '+(t.stationName||'')).includes(k)).slice(0,5).forEach(t=>out.push({sec:'タスク',icon:'check',label:t.title,sub:taskDate(t)?fmtMD(taskDate(t)):'',run:()=>openTaskEditor(t.id)}));
-    [...CATALOGS,...(state.bookmarks||[])].forEach(c=>{if(hit(c.title))out.push({sec:'リンク',icon:'ext',label:c.title,sub:'新しいタブで開く',run:()=>window.open(c.url,'_blank','noopener')})})}
+    [...CATALOGS,...(state.bookmarks||[])].forEach(c=>{if(hit(c.title))out.push({sec:'リンク',icon:'ext',label:c.title,sub:'新しいタブで開く',run:()=>window.open(safeWebUrl(c.url),'_blank','noopener')})})}
   return out;
 }
 function openPalette(){
@@ -270,8 +270,8 @@ function openSettings(tab='general'){
      <div class="field full"><label>Fine-grained Personal Access Token</label><input name="ghToken" type="password" value="${esc(g.token)}" autocomplete="off"><span class="hint">トークンはこの端末のブラウザにだけ保存され、同期データには含まれません。対象リポジトリの Contents: Read and write 権限で発行してください。共有パソコンでは使わないでください。</span></div>
      <div class="field"><label>自動同期</label><select name="ghEnabled"><option value="false">しない</option><option value="true">する</option></select></div><div class="field"><label>同期の間隔</label><select name="ghInterval"><option value="60">1分</option><option value="120">2分</option><option value="300">5分</option></select></div></div>
      <div class="row" style="margin-top:6px"><button class="btn sm" type="button" id="ghPull">${icon('dl')}GitHubから取得</button><button class="btn sm" type="button" id="ghPush">${icon('ul')}GitHubへ保存</button></div></section>
-   <section class="setSec" data-sec="data"><h3>バックアップ</h3><p class="hint">デスクトップで使う場合、データはそのブラウザの中に保存されます。ブラウザを変える前や定期的に、バックアップファイルを書き出しておくと安心です。</p>
-     <div class="row"><button class="btn" type="button" id="bkOut">${icon('dl')}バックアップを書き出す（.json）</button><button class="btn" type="button" id="bkIn">${icon('ul')}バックアップから復元</button></div>
+   <section class="setSec" data-sec="data"><h3>バックアップ</h3><p class="hint">デスクトップで使う場合、データはそのブラウザの中に保存されます。ブラウザを変える前や定期的に、同期パスワードで暗号化したバックアップを保存できます。復元には同じパスワードが必要です。</p>
+     <div class="row"><button class="btn" type="button" id="bkOut">${icon('dl')}暗号化バックアップ（.json）</button><button class="btn" type="button" id="bkIn">${icon('ul')}バックアップから復元</button></div>
      <h3 style="margin-top:22px">Outlookとの連携</h3><p class="hint">Outlookで「カレンダーを保存」したICSファイルを読み込めます。書き出したICSはOutlookやiPhoneのカレンダーに取り込めます。</p>
      <div class="row"><button class="btn" type="button" id="icsIn">${icon('ul')}ICSを読み込む</button><button class="btn" type="button" id="icsOut">${icon('dl')}すべての予定をICSで書き出す</button></div>
      <p class="hint" style="margin-top:22px">予定 ${state.events.length}件・タスク ${state.tasks.length}件・最終更新 ${new Date(state.updatedAt).toLocaleString('ja-JP')}</p></section>
@@ -282,7 +282,7 @@ function openSettings(tab='general'){
     const cats=clone(state.categories),bms=clone(state.bookmarks||[]);
     const drawCats=()=>{$('catEd').innerHTML=cats.map((c,i)=>`<div class="r cat"><input type="color" value="${c.color}" data-cc="${i}"><input class="input" value="${esc(c.name)}" data-cn="${i}"><button class="btn ghost icon sm" type="button" data-cd="${i}" ${c.locked?'disabled title="既定の種別は削除できません"':''} aria-label="削除">${icon('trash')}</button></div>`).join('');
       $$('[data-cc]',box).forEach(x=>x.oninput=()=>cats[+x.dataset.cc].color=x.value);$$('[data-cn]',box).forEach(x=>x.oninput=()=>cats[+x.dataset.cn].name=x.value);$$('[data-cd]',box).forEach(x=>x.onclick=()=>{cats.splice(+x.dataset.cd,1);drawCats()})};
-    const drawBms=()=>{$('bmEd').innerHTML=bms.map((b,i)=>`<div class="r"><input class="input" value="${esc(b.title)}" placeholder="表示名" data-bt="${i}"><input class="input" value="${esc(b.url)}" placeholder="https://" data-bu="${i}"><button class="btn ghost icon sm" type="button" data-bd="${i}" aria-label="削除">${icon('trash')}</button></div>`).join('')||'<div class="empty" style="padding:12px">まだありません。</div>';
+    const drawBms=()=>{$('bmEd').innerHTML=bms.map((b,i)=>`<div class="r"><input class="input" value="${esc(b.title)}" placeholder="表示名" data-bt="${i}"><input class="input" value="${esc(safeWebUrl(b.url))}" placeholder="https://" data-bu="${i}"><button class="btn ghost icon sm" type="button" data-bd="${i}" aria-label="削除">${icon('trash')}</button></div>`).join('')||'<div class="empty" style="padding:12px">まだありません。</div>';
       $$('[data-bt]',box).forEach(x=>x.oninput=()=>bms[+x.dataset.bt].title=x.value);$$('[data-bu]',box).forEach(x=>x.oninput=()=>bms[+x.dataset.bu].url=x.value);$$('[data-bd]',box).forEach(x=>x.onclick=()=>{bms.splice(+x.dataset.bd,1);drawBms()})};
     drawCats();drawBms();
     $('addCat').onclick=()=>{cats.push({id:uid('c'),name:'新しい種別',color:'#2f8f83',locked:false});drawCats();$$('[data-cn]',box).pop().select()};
@@ -293,7 +293,7 @@ function openSettings(tab='general'){
     const readGh=()=>({enabled:f.ghEnabled.value==='true',owner:f.ghOwner.value.trim(),repo:f.ghRepo.value.trim(),branch:f.ghBranch.value.trim()||'main',path:f.ghPath.value.trim()||'data/kouji-next.json',token:f.ghToken.value.trim(),interval:+f.ghInterval.value||120});
     $('ghPull').onclick=async()=>{localCfg.github=Object.assign(readGh(),{enabled:true});saveLocal();await syncNow('pull');f.ghEnabled.value='true'};
     $('ghPush').onclick=async()=>{localCfg.github=Object.assign(readGh(),{enabled:true});saveLocal();await syncNow('push');f.ghEnabled.value='true'};
-    $('bkOut').onclick=()=>{downloadText(`kouji-next_backup_${todayISO()}.json`,JSON.stringify(syncPayload(),null,2),'application/json');toast('バックアップを書き出しました')};
+    $('bkOut').onclick=()=>KoujiCrypto.exportBackup();
     $('bkIn').onclick=()=>$('fileJson').click();$('icsIn').onclick=()=>$('fileIcs').click();$('icsOut').onclick=()=>exportIcs('all');
     $('setSave').onclick=async()=>{
       const valid=cats.filter(c=>c.name.trim());if(!valid.length){toast('種別を1つ以上残してください');return}
@@ -307,7 +307,7 @@ function openSettings(tab='general'){
     };
   }});
 }
-function restoreBackup(text){let p;try{p=JSON.parse(text)}catch(e){toast('バックアップファイルを読めませんでした');return}const payload=p.state?p:{state:p,updatedAt:p.updatedAt||Date.now()};if(!payload.state?.events&&!payload.state?.tasks){toast('工事管理nextのバックアップではありません');return}
+async function restoreBackup(text){let p;try{p=KoujiSecurity.parse(text);if(p?.encrypted)p=await KoujiCrypto.openBackup(p);if(!p)return}catch(e){toast('バックアップを復元できません。パスワードとファイルを確認してください');return}const payload=p.state?p:{state:p,updatedAt:p.updatedAt||Date.now()};if(!payload.state?.events&&!payload.state?.tasks){toast('工事管理nextのバックアップではありません');return}
   confirmBox(`バックアップ（予定${payload.state.events?.length||0}件・タスク${payload.state.tasks?.length||0}件）で現在のデータを置き換えます。よろしいですか？`,{ok:'置き換える'}).then(ok=>{if(!ok)return;payload.updatedAt=Date.now();applyPayload(payload);state.updatedAt=Date.now();saveState(true);applyTheme();toast('バックアップから復元しました')})}
 
 /* ---------- 全体の再描画 ---------- */
@@ -327,7 +327,8 @@ function onKey(e){
 }
 
 /* ---------- 起動 ---------- */
-function boot(){
+async function boot(){
+  try{await KoujiSecurity.ready;await window.KoujiExtensionsReady}catch(e){const box=document.createElement('div');box.setAttribute('role','alert');box.style.cssText='position:fixed;inset:0;z-index:100000;background:#101825;color:white;padding:32px';box.textContent='保存済みデータを安全に開けませんでした。データは上書きしていません。ブラウザの保存データを削除せず、再読み込みしてください。';document.body.append(box);return}
   initState();applyTheme();applyLayout();
   if(document.documentElement.classList.contains('preRailCollapsed'))document.documentElement.classList.remove('preRailCollapsed');
   renderNav();initCalendar();
@@ -353,14 +354,14 @@ function boot(){
   $$('[data-wx]').forEach(b=>b.onclick=()=>{wxView=b.dataset.wx;$$('[data-wx]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderWeather()});
   $('toolReload').onclick=()=>{const f=$('toolFrame');f.src=f.src};
   $('fileIcs').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;importIcsText(await file.text())};
-  $('fileJson').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;restoreBackup(await file.text())};
+  $('fileJson').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>12*1024*1024){toast('バックアップファイルが大きすぎます');return}await restoreBackup(await file.text())};
   document.addEventListener('keydown',onKey);
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='auto')applyTheme()});
   onChange(()=>{renderAll();applyTheme()});
   /* 日付が変わったら再描画 */
   let day=todayISO();setInterval(()=>{if(todayISO()!==day){day=todayISO();renderAll()}},60000);
   /* ツール側（iframe）からの要求 */
-  window.addEventListener('message',e=>{const d=e.data||{};if(d.type==='kouji-route'&&typeof d.route==='string')routeTo(d.route)});
+  window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==$('toolFrame').contentWindow)return;const d=e.data||{};if(d.type==='kouji-route'&&typeof d.route==='string'&&/^(home|calendar|map|tool\/[a-z0-9-]+)$/.test(d.route))routeTo(d.route)});
   if(innerWidth<=1180)document.body.classList.remove('paneOpenM');
   handleRoute();renderTasks();loadWeather();setInterval(loadWeather,20*60*1000);setupAutoSync();
   window.addEventListener('online',()=>syncNow('auto'));document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow('auto')});

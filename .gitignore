@@ -20,3 +20,5 @@ local-tts/__pycache__/
 *.onnx
 *.ckpt
 *.safetensors
+
+_public_site/

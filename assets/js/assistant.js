@@ -243,6 +243,7 @@
   async function postAi(cfg,body,opts={}){
     const {url}=normEndpoint(cfg.endpoint),key=cleanKey(cfg.accessKey);
     if(!url)throw new AiError('AIプロキシURLが未設定です','NO_ENDPOINT','config');
+    const endpoint=new URL(url,location.href);if(endpoint.username||endpoint.password||!(endpoint.protocol==='https:'||endpoint.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(endpoint.hostname)))throw new AiError('AI接続先はHTTPSまたは端末内サーバーを指定してください','UNSAFE_ENDPOINT','config');
     if(!key)throw new AiError('AIアクセスキーが未入力です','ACCESS_KEY_MISSING','config');
     /* 使うAIの選択はここで一括して付ける（Gemini が標準。OpenAI への切替は明示した場合のみ） */
     const prov=providerOf(cfg);
@@ -252,7 +253,7 @@
     try{
       r=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',
         headers:{'Content-Type':'application/json','X-App-Key':key},body:JSON.stringify(body),
-        ...(opts.signal?{signal:opts.signal}:{})});
+        redirect:'error',...(opts.signal?{signal:opts.signal}:{})});
     }catch(e){
       if(e&&e.name==='AbortError')throw new AiError('中止しました','ABORTED','client');
       throw new AiError('Vercel APIへ接続できません（通信・CORS）','NETWORK','network');
@@ -287,12 +288,12 @@
     /* 1-2. 到達・CORS（GETヘルスチェック） */
     let health=null;
     try{
-      const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',credentials:'omit'});
+      const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',credentials:'omit',redirect:'error',headers:{'X-App-Key':key}});
       health=await r.json().catch(()=>null);
       step('Vercel API到達','ok');step('CORS','ok');
     }catch(e){
       let reachable=false;
-      try{await fetch(url,{method:'GET',mode:'no-cors',cache:'no-store',credentials:'omit'});reachable=true}catch(_){}
+      try{await fetch(url,{method:'GET',mode:'no-cors',cache:'no-store',credentials:'omit',redirect:'error',headers:{'X-App-Key':key}});reachable=true}catch(_){}
       if(reachable){step('Vercel API到達','ok');step('CORS','ng','ALLOWED_ORIGIN を確認してください');return {ok:false,summary:'CORSエラー'}}
       step('Vercel API到達','ng','URL・通信状態を確認してください');return {ok:false,summary:'Vercel APIへ到達できません'};
     }

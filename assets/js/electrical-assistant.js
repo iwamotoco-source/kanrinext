@@ -1,13 +1,14 @@
 /* Web adaptation of nktkt/deepelectricalwork (MIT), copyright 2026 nktkt.
    Official XML is decoded from API v2's base64 JSON envelope; never parsed as HTML. */
 'use strict';
-(()=>{
+(async()=>{
+await KoujiSecurity.ready;
 const $=s=>document.querySelector(s),KEY='koujiElectricalChecksV1',CACHE='koujiElectricalLawsV1';
 const T={general:[['外観目視','固定、支持、接続部、被覆損傷、配線方式を確認。'],['接続確認','端子締付け、圧着、極性を器具の仕様に照らして確認。'],['絶縁抵抗測定','回路、測定電圧、測定値、適用する判定基準を記録。電子機器の切離し等を確認。'],['接地抵抗測定','接地種別、測定条件、測定値と適用条件を記録。'],['導通・極性確認','回路の導通、極性、短絡の有無を確認。'],['漏電遮断器試験','器具の定格感度・動作時間と試験方法を確認して記録。'],['分電盤表示','回路名称、定格、竣工図との対応を確認。'],['メタルラス等の絶縁','該当箇所の貫通・絶縁処理を確認。'],['通電・動作確認','安全を確保した手順で照明、コンセント、スイッチ等を確認。'],['供給開始・計器確認','電力会社との手続き、計器取付けを確認。']],private:[['保安体制・手続き','主任技術者、保安規程、必要な届出の適用と完了状況を確認。'],['受電設備外観','キュービクル、PAS/UGS、避雷器等を確認。'],['高圧絶縁試験','機器仕様・試験計画に応じた試験方法、試験電圧、判定基準を確認。'],['接地抵抗測定','接地種別ごとの適用条件と測定結果を記録。'],['保護継電器試験','整定値、動作時間、電力会社との協議値を照合。'],['低圧絶縁抵抗測定','回路、測定条件、適用基準を記録。'],['インターロック確認','断路器・遮断器の操作順序、機械的拘束を確認。'],['非常用発電機試験','起動、電圧、燃料、冷却、負荷試験を仕様書と照合。'],['接地端子箱','腐食、接続、表示を確認。'],['使用前の法定手続き','設備区分に応じた検査・自己確認等の要否と実施状況を確認。'],['竣工図書','単線結線図、系統図、試験成績書を照合。'],['受電・動作試験','承認済み手順書に従い記録。']],annual:[['外観点検','劣化、変色、油漏れ、腐食を確認。'],['絶縁抵抗測定','前回値と測定条件を比較。'],['接地抵抗測定','天候、測定条件、前回値を記録。'],['継電器試験','保安規程・試験計画に基づき実施。'],['変圧器油試験','油入機器で該当する試験と判定基準を確認。'],['PAS/UGS動作','操作手順に従い動作を確認。'],['非常用発電機運転','運転条件、負荷、結果を記録。'],['点検記録の保存','設備区分・保安規程等に応じた保存要件を確認。']]};
 let laws=[],selected=new Set(),records=[],active='',attached=null,history=[],controller=null;
 function node(tag,text,cls){let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
-function read(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}}
-function store(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{$('#status').textContent='保存領域に書き込めません。記録をダウンロードして保管してください。';return false}}
+function read(k,d){try{return KoujiSecurity.read(k,d)||d}catch{return d}}
+function store(k,v){try{KoujiSecurity.write(k,v);return true}catch{$('#status').textContent='保存領域に書き込めません。記録をダウンロードして保管してください。';return false}}
 function msg(t){$('#status').textContent=t}
 function tab(t){document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===t)));['laws','checks','ai'].forEach(x=>$('#'+x).hidden=x!==t);if(t==='ai')sources()}
 const rec=()=>records.find(r=>r.id===active);

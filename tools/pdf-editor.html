@@ -230,11 +230,11 @@ html,body{background:#0f1115!important}.logo{background:#d6b66f!important;box-sh
 <div id="busy"><div class="spin"></div><div class="tx" id="busyTx">読み込んでいます…</div></div>
 
 <script>
-/* ライブラリ： ./lib/ があればそれを、無ければCDNを使う（オフライン対応） */
+/* 同梱ライブラリだけを読み込む（外部スクリプトを実行しない） */
 const LIB={
-  js:['./lib/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'],
-  wk:['./lib/pdf.worker.min.js',(location.protocol==='file:'?'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js':'./lib/pdf.worker.min.js')],
-  lib:['./lib/pdf-lib.min.js','https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js']
+  js:['./lib/pdf.min.js'],
+  wk:['./lib/pdf.worker.min.js','./lib/pdf.worker.min.js'],
+  lib:['../assets/vendor/compression/pdf-lib.min.js']
 };
 const load=l=>new Promise((ok,ng)=>{let i=0;const t=()=>{if(i>=l.length)return ng(0);
   const s=document.createElement('script');s.src=l[i++];s.onload=ok;s.onerror=t;document.head.appendChild(s);};t();});

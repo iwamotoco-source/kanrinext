@@ -19,11 +19,12 @@
 'use strict';
 
 const {createHash,timingSafeEqual}=require('crypto');
+const {setCors,burst,bodyAllowed}=require('./_lib/security');
 const {cleanSecret,redact,b64Bytes}=require('./_lib/util');
 const router=require('./_lib/providers');
 
 const DEFAULT_ORIGIN='https://iwamotoco-source.github.io';
-const BUILD_ID='chatgpt-preparation-20261006';
+const BUILD_ID='security-20261007';
 
 /* AI Workspace（mode:'workspace'）の入力上限。Vercel関数のリクエスト本文上限(約4.5MB)より手前で止める */
 const LIMITS={
@@ -57,20 +58,7 @@ function checkAccess(supplied){
 function allowedOrigins(){
   return String(process.env.ALLOWED_ORIGIN||DEFAULT_ORIGIN).split(',').map(normOrigin).filter(Boolean);
 }
-function setCors(req,res){
-  const origin=normOrigin(req.headers.origin||'');
-  const allowed=allowedOrigins();
-  const local=/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  /* ALLOWED_ORIGIN に誤ってパス付きURLを入れても GitHub Pages を締め出さない */
-  const ok=!origin||allowed.includes('*')||allowed.includes(origin)||origin===DEFAULT_ORIGIN||local;
-  res.setHeader('Vary','Origin');
-  if(origin&&ok)res.setHeader('Access-Control-Allow-Origin',origin);
-  res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type, X-App-Key');
-  res.setHeader('Access-Control-Max-Age','600');
-  res.setHeader('Cache-Control','no-store');
-  return ok;
-}
+
 
 /* ---------- エラー応答（code で原因を切り分け、秘密値は含めない） ---------- */
 const MESSAGES={
@@ -323,9 +311,11 @@ function parseWorkspace(text,withActions){
 /* ---------- handler ---------- */
 module.exports=async function handler(req,res){
   const corsOk=setCors(req,res);
-  if(req.method==='OPTIONS')return res.status(204).end();
+  if(req.method==='OPTIONS')return corsOk?res.status(204).end():fail(res,403,'ORIGIN_NOT_ALLOWED');
   if(!corsOk)return fail(res,403,'ORIGIN_NOT_ALLOWED');
 
+  if(!burst(req,res,'ai.js-all',240))return;
+  if(req.method==='GET'){const authErr=checkAccess(req.headers['x-app-key']);if(authErr)return fail(res,authErr==='ACCESS_TOKEN_NOT_CONFIGURED'?500:401,authErr);}
   if(req.method==='GET'){
     const info=router.publicInfo();
     return res.status(200).json({
@@ -342,6 +332,8 @@ module.exports=async function handler(req,res){
   /* 認証はAI設定より先に判定（未認証の相手に内部設定状況を返さない） */
   const authErr=checkAccess(req.headers['x-app-key']);
   if(authErr)return fail(res,authErr==='ACCESS_TOKEN_NOT_CONFIGURED'?500:401,authErr);
+  if(!burst(req,res,'ai.js-auth',40))return;
+  if(!bodyAllowed(req,LIMITS.bodyBytes))return fail(res,413,'PAYLOAD_TOO_LARGE');
 
   let body=req.body;
   if(typeof body==='string')try{body=JSON.parse(body)}catch{return fail(res,400,'BAD_REQUEST','invalid JSON')}

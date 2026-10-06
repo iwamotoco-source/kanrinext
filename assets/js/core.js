@@ -44,7 +44,7 @@ const DEFAULT_CATEGORIES=[
 ];
 const DEFAULT_CAL_SETTINGS={weekStart:0,workDays:[1,2,3,4,5],workStart:'08:30',workEnd:'17:30',defaultReminder:15,showHolidays:true,showTasks:true,defaultDuration:60,weekNumbers:false,hiddenCats:[]};
 const DEFAULT_STATE={version:2,updatedAt:Date.now(),tasks:[],events:[],categories:DEFAULT_CATEGORIES,bookmarks:[],
-  settings:{theme:'dark',weather:{name:'町田市',lat:35.5486,lon:139.4467},routes:{home:'〒194-0036 東京都町田市木曽東1丁目36-26',office:'〒194-0021 東京都町田市中町3丁目4-3'},calendar:DEFAULT_CAL_SETTINGS}};
+  settings:{theme:'dark',weather:{name:'町田市',lat:35.5486,lon:139.4467},routes:{home:'',office:''},calendar:DEFAULT_CAL_SETTINGS}};
 const DEFAULT_LOCAL={deviceId:'dev-'+Math.random().toString(36).slice(2)+Date.now().toString(36),leftCollapsed:false,rightCollapsed:false,paneOpen:true,calSide:true,calView:'week',hiddenCats:[],navClosed:{},
   github:{enabled:false,owner:'',repo:'',branch:'main',path:'data/kouji-next.json',token:'',interval:120}};
 
@@ -54,11 +54,12 @@ const $$=(sel,root=document)=>Array.from(root.querySelectorAll(sel));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-function loadJSON(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}}
-function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('ブラウザの保存領域に書き込めませんでした')}}
+function loadJSON(k,d){try{const v=window.KoujiSecurity?.protects(k)?KoujiSecurity.read(k,d):JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}}
+function saveJSON(k,v){try{if(window.KoujiSecurity?.protects(k))KoujiSecurity.write(k,v);else localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('ブラウザの保存領域に書き込めませんでした')}}
 function icon(name,cls='i',style=''){return `<svg class="${cls}"${style?` style="${style}"`:''}><use href="#i-${name}"/></svg>`}
 /* 検索用正規化：カタカナ→ひらがな、全角英数→半角、記号除去 */
 function norm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)).replace(/駅$/,'').replace(/[\s_\-・ー（）()「」]/g,'')}
+function safeWebUrl(raw){try{const u=new URL(String(raw));return /^https?:$/.test(u.protocol)&&!u.username&&!u.password?u.href:'#'}catch{return '#'}}
 function isWindowsDesktop(){return /Windows/i.test(navigator.userAgent)&&!/Mobile|Phone|iPad|Android/i.test(navigator.userAgent)}
 
 /* ---------- 日付 ---------- */

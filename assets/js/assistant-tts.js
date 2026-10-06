@@ -38,9 +38,10 @@
       return /\/api\/ai$/.test(u)?u.replace(/\/api\/ai$/,'/api/tts'):'';
     }catch(e){return ''}
   }
+  function safeEndpoint(raw){try{const u=new URL(raw);return !u.username&&!u.password&&(u.protocol==='https:'||u.protocol==='http:'&&/^(localhost|127\.0\.0\.1|\[::1\]|10\.[\d.]+|192\.168\.[\d.]+|172\.(1[6-9]|2\d|3[01])\.[\d.]+)$/.test(u.hostname))}catch{return false}}
   function target(over){
     const t=Object.assign(T(),over||{}),lb=baseUrl(t.ttsEndpoint);
-    if(lb&&String(t.ttsKey||'').trim())return {kind:'local',url:lb+'/tts',base:lb,headers:{'Content-Type':'application/json','Authorization':'Bearer '+String(t.ttsKey).trim()},timeout:60000};
+    if(lb&&String(t.ttsKey||'').trim()&&safeEndpoint(lb))return {kind:'local',url:lb+'/tts',base:lb,headers:{'Content-Type':'application/json','Authorization':'Bearer '+String(t.ttsKey).trim()},timeout:60000};
     const pu=proxyUrl(t);
     if(!lb&&pu){const k=(AI().cleanKey?AI().cleanKey(t.accessKey):String(t.accessKey).trim());return {kind:'proxy',url:pu,base:pu,headers:{'Content-Type':'application/json','X-App-Key':k},timeout:70000}}
     return null;
@@ -52,7 +53,7 @@
     if(Date.now()-probe.t<5*60*1000&&probe.t)return probe.ok;
     if(probe.p)return probe.p;
     probe.p=(async()=>{
-      try{const r=await fetch(tg.url,{cache:'no-store'});const j=await r.json();probe.ok=!!(r.ok&&j&&j.spaceConfigured)}catch(e){probe.ok=false}
+      try{const r=await fetch(tg.url,{cache:'no-store',redirect:'error',headers:tg.headers,credentials:'omit'});const j=await r.json();probe.ok=!!(r.ok&&j&&j.spaceConfigured)}catch(e){probe.ok=false}
       probe.t=Date.now();probe.p=null;return probe.ok;
     })();
     return probe.p;
@@ -151,7 +152,7 @@
   async function doFetch(tg,body,k,ac){
     const to=setTimeout(()=>ac.abort(),tg.timeout),t0=performance.now();
     try{
-      const r=await fetch(tg.url,{method:'POST',headers:tg.headers,body:JSON.stringify(body),signal:ac.signal,cache:'no-store'});
+      const r=await fetch(tg.url,{method:'POST',headers:tg.headers,body:JSON.stringify(body),signal:ac.signal,cache:'no-store',redirect:'error'});
       if(!r.ok){let m='';try{m=(await r.json()).error||''}catch(e){}const err=new Error(m||('HTTP '+r.status));err.status=r.status;throw err}
       const buf=await r.arrayBuffer();
       if(!buf.byteLength)throw new Error('empty audio');
@@ -320,7 +321,7 @@
       if(!pu)return {ok:false,msg:'接続先が未設定です。TTSサーバーのURLを入れるか、AI接続（Vercel）を設定してください'};
       const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);
       try{
-        const r=await fetch(pu,{signal:ac.signal,cache:'no-store'});
+        const r=await fetch(pu,{signal:ac.signal,cache:'no-store',redirect:'error',headers:{'X-App-Key':AI().cleanKey(t.accessKey)},credentials:'omit'});
         if(r.status===404)return {ok:false,msg:'Vercel に音声用の中継(api/tts)がまだ反映されていません。再デプロイを確認してください'};
         const j=await r.json();
         if(!j.spaceConfigured)return {ok:false,msg:'Vercel に HF_TTS_SPACE が未設定です（自分用の Hugging Face Space の URL を環境変数に入れて再デプロイ）'};
@@ -333,7 +334,7 @@
     if(mixedBlocked(url))return {ok:false,msg:'このページ(https)から http のサーバーへは接続できません。https の URL（Tailscale Serve / Cloudflare Tunnel など）を使うか、同じPCの http://localhost を指定してください'};
     const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);
     try{
-      const r=await fetch(url+'/status',{headers:{'Authorization':'Bearer '+String(t.ttsKey).trim()},signal:ac.signal,cache:'no-store'});
+      const r=await fetch(url+'/status',{headers:{'Authorization':'Bearer '+String(t.ttsKey).trim()},signal:ac.signal,cache:'no-store',redirect:'error'});
       if(r.status===401||r.status===403)return {ok:false,msg:'TTSアクセスキーが違います'};
       if(!r.ok)return {ok:false,msg:'サーバーがエラーを返しました（HTTP '+r.status+'）'};
       const j=await r.json();
