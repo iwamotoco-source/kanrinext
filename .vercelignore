@@ -1,0 +1,7 @@
+# GitHub sync uses the repository API, never the hosted static copy.
+data/kouji-next.json
+docs/
+scripts/
+localtts/
+_public_site/
+_config.yml

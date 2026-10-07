@@ -7,8 +7,9 @@ DEST = ROOT / '_public_site'
 if DEST.exists():
     shutil.rmtree(DEST)
 DEST.mkdir()
-for name in ('index.html', 'manifest.json', 'service-worker.js', '.nojekyll'):
+for name in ('index.html', 'manifest.json', 'service-worker.js'):
     shutil.copy2(ROOT / name, DEST / name)
+(DEST / '.nojekyll').write_text('')
 for name in ('assets', 'icons', 'tools', 'workers'):
     shutil.copytree(ROOT / name, DEST / name)
 (DEST / 'data').mkdir()

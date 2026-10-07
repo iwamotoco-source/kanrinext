@@ -1,0 +1,23 @@
+# Legacy branch publishing also excludes non-application files.
+include:
+  - assets/vendor
+exclude:
+  - api
+  - localtts
+  - docs
+  - scripts
+  - data/kouji-next.json
+  - node_modules
+  - package.json
+  - package-lock.json
+  - vercel.json
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: null
+      render_with_liquid: false
